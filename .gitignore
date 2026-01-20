@@ -3,3 +3,8 @@
 ################################################################################
 
 /.vs
+/Exchange/KlingerExchange/bin/Debug/net10.0/KlingerExchange.dll
+/Exchange/KlingerExchange/bin/Debug/net10.0/KlingerExchange.exe
+/Exchange/KlingerExchange/bin/Debug/net10.0/KlingerExchange.pdb
+/Exchange/KlingerExchange/bin/Debug/net10.0/KlingerShared.dll
+/Exchange/KlingerExchange/bin/Debug/net10.0/KlingerShared.pdb
