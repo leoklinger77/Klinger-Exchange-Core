@@ -1,0 +1,23 @@
+[
+  {
+    "Name": "New Profile",
+    "Projects": [
+      {
+        "Path": "Exchange\\KlingerExchange\\KlingerExchange.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Broker\\KlingerOms\\KlingerOms.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Broker\\KlingerClient\\KlingerClient\\KlingerClient.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Exchange\\KlingerMarketSimulator\\KlingerSimulator.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]
