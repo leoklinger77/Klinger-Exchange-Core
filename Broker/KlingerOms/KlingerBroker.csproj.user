@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Compile Update="Ui\Docking\MyOrders\MyOrdersControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Ui\Docking\MyOrders\MyOrdersDock.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Ui\Docking\OrderBook\OrderBookControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Ui\Docking\OrderBook\OrderBookDock.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Ui\Docking\OrderEntry\OrderEntryControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Ui\Docking\OrderEntry\OrderEntryDock.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Ui\Docking\VerticalBook\VerticalBookControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Ui\Docking\VerticalBook\VerticalBookDock.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Ui\Main.cs">
+      <SubType>Form</SubType>
+    </Compile>
+  </ItemGroup>
+</Project>

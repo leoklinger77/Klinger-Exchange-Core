@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Compile Update="Components\SelectInstrumentControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Docking\Charts\ChartsControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Docking\Charts\ChartsDock.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Docking\Marketwatch\MarketwatchDock.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Docking\Marketwatch\MarketwatchControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+  </ItemGroup>
+</Project>

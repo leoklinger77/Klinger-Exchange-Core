@@ -1,0 +1,15 @@
+services:
+  klingerapi:
+    image: ${DOCKER_REGISTRY-}klingerapi
+    container_name: klinger-api
+    build:
+      context: .
+      dockerfile: Exchange/KlingerApi/Dockerfile
+    ports:
+      - "5000:5000"
+      - "5001:5001"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=5000
+      - ASPNETCORE_HTTPS_PORTS=5001
+    restart: unless-stopped
