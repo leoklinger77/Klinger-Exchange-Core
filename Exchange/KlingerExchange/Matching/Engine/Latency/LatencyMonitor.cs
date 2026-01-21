@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace KlingerExchange.Matching.Engine.Latency;
 
@@ -11,9 +13,53 @@ public sealed class LatencyMonitor {
     private long _maxNs;
     private long _sumNs;
 
+    // CPU migration tracking
+    private long _cpuMigrations;
+    private long _sampledMatches;
+    private const int SampleRate = 32; // 1 out of 32
+    private const int SampleMask = SampleRate - 1;
+
+    [ThreadStatic]
+    private static int _sampleSeq;
+
     public LatencyMonitor(int windowSize = 1000) {
         _recentLatencies = new ConcurrentQueue<long>();
         _windowSize = windowSize;
+    }
+
+    public readonly struct LatencySample {
+        public long StartTicks { get; }
+        public int StartCpuId { get; }
+        public bool Active { get; }
+
+        public LatencySample(long startTicks, int startCpuId) {
+            StartTicks = startTicks;
+            StartCpuId = startCpuId;
+            Active = true;
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public LatencySample StartSample() {
+        var seq = ++_sampleSeq;
+        if ((seq & SampleMask) != 0)
+            return default;
+
+        return new LatencySample(Stopwatch.GetTimestamp(), Thread.GetCurrentProcessorId());
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void EndSample(in LatencySample sample) {
+        if (!sample.Active)
+            return;
+
+        var endTicks = Stopwatch.GetTimestamp();
+        var endCpuId = Thread.GetCurrentProcessorId();
+
+        Interlocked.Increment(ref _sampledMatches);
+
+        if (sample.StartCpuId != endCpuId)
+            Interlocked.Increment(ref _cpuMigrations);
     }
 
     public void RecordLatency(long totalTimeNs) {
@@ -50,6 +96,8 @@ public sealed class LatencyMonitor {
         var sum = Interlocked.Read(ref _sumNs);
         var min = Interlocked.Read(ref _minNs);
         var max = Interlocked.Read(ref _maxNs);
+        var migrations = Interlocked.Read(ref _cpuMigrations);
+        var sampled = Interlocked.Read(ref _sampledMatches);
 
         var avgNs = total > 0 ? sum / total : 0;
 
@@ -70,7 +118,10 @@ public sealed class LatencyMonitor {
             AvgNs = avgNs,
             P50Ns = p50,
             P95Ns = p95,
-            P99Ns = p99
+            P99Ns = p99,
+            CpuMigrations = migrations,
+            SampledMatches = sampled,
+            SampleRate = SampleRate
         };
     }
 

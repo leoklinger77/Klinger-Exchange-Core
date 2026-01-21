@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "KlingerExchange": {
+      "commandName": "Project"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker"
+    }
+  }
+}

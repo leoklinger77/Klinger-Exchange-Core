@@ -3,6 +3,10 @@
     "Name": "New Profile",
     "Projects": [
       {
+        "Path": "Exchange\\KlingerApi\\KlingerApi.csproj",
+        "Action": "Start"
+      },
+      {
         "Path": "Exchange\\KlingerExchange\\KlingerExchange.csproj",
         "Action": "Start"
       },

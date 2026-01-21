@@ -9,8 +9,7 @@ namespace KlingerExchange.Matching.Domain;
 /// High-performance order book using long (fixed-point) prices.
 /// Target: &lt;50µs for match operations.
 /// </summary>
-public sealed class FastOrderBook
-{
+public sealed class FastOrderBook {
     // Price multiplier: 100_000_000 gives 8 decimal places precision
     private const long PRICE_MULTIPLIER = 100_000_000L;
 
@@ -20,8 +19,7 @@ public sealed class FastOrderBook
 
     public string Symbol { get; }
 
-    public FastOrderBook(string symbol)
-    {
+    public FastOrderBook(string symbol) {
         Symbol = symbol;
         // Bids: highest price first (descending)
         _bids = new SortedList<long, FastPriceLevel>(Comparer<long>.Create((a, b) => b.CompareTo(a)));
@@ -36,13 +34,11 @@ public sealed class FastOrderBook
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static decimal FromFixedPrice(long priceFixed) => (decimal)priceFixed / PRICE_MULTIPLIER;
 
-    public void AddOrder(Order order)
-    {
+    public void AddOrder(Order order) {
         var priceFixed = ToFixedPrice(order.Price);
         var book = order.Side == Side.Buy ? _bids : _asks;
 
-        if (!book.TryGetValue(priceFixed, out var level))
-        {
+        if (!book.TryGetValue(priceFixed, out var level)) {
             level = new FastPriceLevel(priceFixed);
             book[priceFixed] = level;
         }
@@ -51,50 +47,43 @@ public sealed class FastOrderBook
         _orderIndex[order.OrderId] = (priceFixed, order.Side);
     }
 
-    public bool RemoveOrder(long orderId)
-    {
+    public (bool success, Side side) RemoveOrder(long orderId) {
         if (!_orderIndex.TryRemove(orderId, out var location))
-            return false;
+            return (false, Side.Buy);
 
         var book = location.Side == Side.Buy ? _bids : _asks;
         if (!book.TryGetValue(location.PriceFixed, out var level))
-            return false;
+            return (false, location.Side);
 
         var removed = level.RemoveOrder(orderId);
         if (removed && level.IsEmpty)
             book.Remove(location.PriceFixed);
 
-        return removed;
+        return (removed, location.Side);
     }
 
     /// <summary>
     /// Match incoming order against the book. Single pass, no repeated lookups.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void MatchOrder(Side incomingSide, decimal limitPrice, ref decimal remainingQty, List<MatchResult> matches)
-    {
+    public void MatchOrder(Side incomingSide, decimal limitPrice, ref decimal remainingQty, List<MatchResult> matches) {
         var limitPriceFixed = ToFixedPrice(limitPrice);
         var book = incomingSide == Side.Buy ? _asks : _bids;
 
-        while (remainingQty > 0 && book.Count > 0)
-        {
+        while (remainingQty > 0 && book.Count > 0) {
             var bestLevel = book.Values[0];
             var bestPriceFixed = book.Keys[0];
 
             // Price check
-            if (incomingSide == Side.Buy)
-            {
+            if (incomingSide == Side.Buy) {
                 if (bestPriceFixed > limitPriceFixed)
                     break;
-            }
-            else
-            {
+            } else {
                 if (bestPriceFixed < limitPriceFixed)
                     break;
             }
 
-            if (bestLevel.OrderCount == 0)
-            {
+            if (bestLevel.OrderCount == 0) {
                 book.RemoveAt(0);
                 continue;
             }
@@ -104,8 +93,7 @@ public sealed class FastOrderBook
             if (!bestLevel.ApplyFillToFirst(fillQty, out var originalOrderId, out var removed))
                 break;
 
-            matches.Add(new MatchResult
-            {
+            matches.Add(new MatchResult {
                 CounterOrderId = originalOrderId,
                 Price = FromFixedPrice(bestPriceFixed),
                 Quantity = fillQty
@@ -113,20 +101,17 @@ public sealed class FastOrderBook
 
             remainingQty -= fillQty;
 
-            if (removed)
-            {
+            if (removed) {
                 _orderIndex.TryRemove(originalOrderId, out _);
             }
 
-            if (bestLevel.IsEmpty)
-            {
+            if (bestLevel.IsEmpty) {
                 book.RemoveAt(0);
             }
         }
     }
 
-    public (decimal BidPrice, decimal BidQty, decimal AskPrice, decimal AskQty) GetTopOfBook()
-    {
+    public (decimal BidPrice, decimal BidQty, decimal AskPrice, decimal AskQty) GetTopOfBook() {
         var bestBid = _bids.Count > 0 ? _bids.Values[0] : null;
         var bestAsk = _asks.Count > 0 ? _asks.Values[0] : null;
 

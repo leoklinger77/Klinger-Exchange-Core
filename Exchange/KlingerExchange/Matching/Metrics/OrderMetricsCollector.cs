@@ -1,3 +1,4 @@
+using KlingerExchange.Matching.Domain.Enums;
 using KlingerExchange.Matching.Domain.Events;
 using KlingerExchange.Matching.Engine.Latency;
 using System.Diagnostics;
@@ -12,7 +13,7 @@ public sealed class OrderMetricsCollector {
     private string _msgType = string.Empty;
     private string _clOrdId = string.Empty;
     private string _symbol = string.Empty;
-    private string _side = string.Empty;
+    private Side _side;
     private decimal _quantity;
     private decimal _price;
     private long _orderId;
@@ -34,7 +35,7 @@ public sealed class OrderMetricsCollector {
         _totalTimer.Restart();
     }
 
-    public void CaptureOrderData(string clOrdId, string symbol, string side, decimal quantity, decimal price, long orderId) {
+    public void CaptureOrderData(string clOrdId, string symbol, Side side, decimal quantity, decimal price, long orderId) {
         _clOrdId = clOrdId;
         _symbol = symbol;
         _side = side;
@@ -59,7 +60,7 @@ public sealed class OrderMetricsCollector {
             MsgType = _msgType,
             ClOrdId = _clOrdId,
             Symbol = _symbol,
-            Side = _side,
+            Side = _side == Side.Buy ? "Buy" : "Sell",
             Quantity = _quantity,
             Price = _price,
             OrderId = _orderId,

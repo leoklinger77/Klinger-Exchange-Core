@@ -5,6 +5,7 @@ using KlingerExchange.Matching.Domain;
 using KlingerExchange.Matching.Domain.Enums;
 using KlingerExchange.Matching.Domain.Struct;
 using KlingerExchange.Matching.Engine.Repository;
+using KlingerExchange.Matching.Engine.Latency;
 using Serilog;
 using System.Collections.Concurrent;
 
@@ -19,6 +20,7 @@ public sealed class MatchingEngine {
     private SymbolMapper? _symbolMapper;
     private uint _sequenceNumber = 0;
     private long _droppedMessages = 0;
+    private LatencyMonitor? _latencyMonitor;
 
     // EventStore para persistência durável
     private EventStoreWriter? _eventStore;
@@ -48,10 +50,14 @@ public sealed class MatchingEngine {
         _eventQueue = new ConcurrentQueue<PendingEvent>();
         _eventSignal = new ManualResetEventSlim(false);
     }
-        
+
     public void SetMarketDataPublisher(RingBuffer buffer, SymbolMapper symbolMapper) {
         _marketDataBuffer = buffer;
         _symbolMapper = symbolMapper;
+    }
+
+    public void SetLatencyMonitor(LatencyMonitor latencyMonitor) {
+        _latencyMonitor = latencyMonitor;
     }
 
     public void EnableEventStore(string baseDirectory) {
@@ -189,7 +195,7 @@ public sealed class MatchingEngine {
 
             var rebuilder = new OrderBookRebuilder(_repository);
             long totalEvents = 0;
-                        
+
             foreach (var eventFile in eventFiles) {
                 Log.Information("Reading file: {File}", Path.GetFileName(eventFile));
 
@@ -218,7 +224,7 @@ public sealed class MatchingEngine {
             // Since it's for study purposes, the application doesn't fail - it just starts with a clean state.
         }
     }
-        
+
     private long FindMaxOrderId() {
         long maxOrderId = 0;
 
@@ -318,14 +324,14 @@ public sealed class MatchingEngine {
         return (order, fills);
     }
 
-    public bool ProcessCancel(string symbol, long orderId) {
+    public (bool success, Side side) ProcessCancel(string symbol, long orderId) {
         if (!_repository.TryGetBook(symbol, out var book) || book == null)
-            return false;
+            return (false, Side.Buy);
 
-        var result = book.RemoveOrder(orderId);
+        var (success, side) = book.RemoveOrder(orderId);
 
         // Cancellation event persists (asynchronous)
-        if (result) {
+        if (success) {
             EnqueueEvent(new PendingEvent {
                 EventType = EventType.OrderCancelled,
                 OrderId = orderId,
@@ -336,9 +342,9 @@ public sealed class MatchingEngine {
             SignalEventDispatcher();
         }
 
-        return result;
-    }    
-        
+        return (success, side);
+    }
+
     private void PublishTrade(string symbol, Fill fill) {
         if (_marketDataBuffer == null || _symbolMapper == null)
             return;

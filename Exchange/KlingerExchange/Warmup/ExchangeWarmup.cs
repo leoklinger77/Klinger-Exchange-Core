@@ -146,7 +146,7 @@ public sealed class ExchangeWarmup {
     private void WarmupMetrics() {
         for (int i = 0; i < METRICS_WARMUP_COUNT; i++) {
             _metricsCollector.StartOrder("D");
-            _metricsCollector.CaptureOrderData("WARMUP", "TEST", "Buy", 100, 10.0m, 0);
+            _metricsCollector.CaptureOrderData("WARMUP", "TEST", Side.Buy, 100, 10.0m, 0);
             _metricsCollector.RecordTiming(1000, 2000, 500, 100, 1);
         }
 

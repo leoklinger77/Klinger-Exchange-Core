@@ -17,6 +17,7 @@ using QuickFix.Fields;
 using Serilog;
 using Serilog.Events;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace KlingerExchange {
     public class ExchangeApplication : IApplication {
@@ -32,6 +33,7 @@ namespace KlingerExchange {
         private InstrumentValidationCache _instrumentCache = null!;
         private long _messageCount;
         private long _lastStatsTick;
+        private bool _threadAffinityConfigured;
 
         public ExchangeApplication() {
             var repository = new OrderBookRepository();
@@ -39,6 +41,9 @@ namespace KlingerExchange {
             _clOrdIdToOrderId = new Dictionary<string, long>();
             _latencyMonitor = new LatencyMonitor(1000);
             _messageCount = 0;
+
+            // Inject latency monitor into matching engine
+            _matchingEngine.SetLatencyMonitor(_latencyMonitor);
 
             // Async logging via reactive stream
             _metricsEventBus = new MetricsEventBus(OnMetricsEvent);
@@ -118,6 +123,12 @@ namespace KlingerExchange {
 
         public void OnLogon(SessionID sessionID) {
             _log.Information("{Callback} {SessionId}", nameof(OnLogon), sessionID);
+
+            // Configure thread affinity once on first logon
+            if (!_threadAffinityConfigured) {
+                ConfigureThreadAffinity();
+                _threadAffinityConfigured = true;
+            }
         }
 
         public void OnLogout(SessionID sessionID) {
@@ -181,7 +192,7 @@ namespace KlingerExchange {
             if (validation.Status == ValidationStatus.Rejected) {
                 var rejectMsg = BuildBusinessReject(message, sessionID, validation);
                 _reportDispatcher.EnqueueReport(rejectMsg, sessionID, returnToPool: false);
-                _metricsCollector.CaptureOrderData(clOrdId, symbol, side.ToString(), quantity, price, 0);
+                _metricsCollector.CaptureOrderData(clOrdId, symbol, side, quantity, price, 0);
                 _metricsCollector.RecordTiming(0, 0, 0, 0, 0);
                 return;
             }
@@ -198,7 +209,7 @@ namespace KlingerExchange {
                 var rejectValidation = ValidationResult.Rejected("Internal matching error", 99);
                 var rejectMsg = BuildBusinessReject(message, sessionID, rejectValidation);
                 _reportDispatcher.EnqueueReport(rejectMsg, sessionID, returnToPool: false);
-                _metricsCollector.CaptureOrderData(clOrdId, symbol, side.ToString(), quantity, price, 0);
+                _metricsCollector.CaptureOrderData(clOrdId, symbol, side, quantity, price, 0);
                 _metricsCollector.RecordTiming(0, 0, 0, 0, 0);
                 return;
             }
@@ -222,7 +233,7 @@ namespace KlingerExchange {
             var matchNs = TicksToNs(matchEndTicks - matchStartTicks);
             var reportSendNs = TicksToNs(endTicks - matchEndTicks);
 
-            _metricsCollector.CaptureOrderData(clOrdId, symbol, side.ToString(), quantity, price, order.OrderId);
+            _metricsCollector.CaptureOrderData(clOrdId, symbol, side, quantity, price, order.OrderId);
             _metricsCollector.RecordTiming(parseNs, matchNs, reportSendNs, 0, fills.Count);
         }
 
@@ -236,7 +247,7 @@ namespace KlingerExchange {
             var parseNs = TicksToNs(swParse.ElapsedTicks);
 
             var swMatch = Stopwatch.StartNew();
-            var cancelled = _matchingEngine.ProcessCancel(symbol, orderId);
+            var (cancelled, side) = _matchingEngine.ProcessCancel(symbol, orderId);
             swMatch.Stop();
             var matchNs = TicksToNs(swMatch.ElapsedTicks);
 
@@ -261,7 +272,7 @@ namespace KlingerExchange {
                 _reportDispatcher.EnqueueReport(rejectReport, sessionID, returnToPool: true);
             }
 
-            _metricsCollector.CaptureOrderData(clOrdId, symbol, "Cancel", 0, 0, orderId);
+            _metricsCollector.CaptureOrderData(clOrdId, symbol, side, 0, 0, orderId);
             _metricsCollector.RecordTiming(parseNs, matchNs, reportNs, sendNs, 0);
         }
 
@@ -280,7 +291,7 @@ namespace KlingerExchange {
 
                 // Log only truly slow orders (>1ms becomes >100µs threshold)
                 if (evt.Metrics.TotalTimeNs > 100_000)
-                    _log.Warning("SLOW: {Metrics}", evt.Metrics.ToString());
+                    _log.Warning("SLOW: {Metrics}", evt.Metrics);
 
                 // Log aggregate stats + EventStore health
                 var count = Interlocked.Increment(ref _messageCount);
@@ -292,16 +303,21 @@ namespace KlingerExchange {
 
                     if (esMetrics.HasValue) {
                         var es = esMetrics.Value;
-                        var bufferPct = (es.BufferUtilization * 100).ToString("F1");
-                        _log.Information("STATS: {Stats} | EventStore: {Written}W/{Flushed}F/{Dropped}D (Buffer: {BufferPct}%)",
-                            stats.ToString(), es.EventsWritten, es.EventsFlushed, es.EventsDropped, bufferPct);
+                        var bufferPct = es.BufferUtilization * 100;
+                        _log.Information("STATS: {Stats} | EventStore: {Written}W/{Flushed}F/{Dropped}D (Buffer: {BufferPct:F1}%)",
+                            stats, es.EventsWritten, es.EventsFlushed, es.EventsDropped, bufferPct);
 
                         if (!es.IsHealthy) {
-                            _log.Warning("EventStore unhealthy: Dropped={Dropped}, Buffer={BufferPct}%",
+                            _log.Warning("EventStore unhealthy: Dropped={Dropped}, Buffer={BufferPct:F1}%",
                                 es.EventsDropped, bufferPct);
                         }
                     } else {
-                        _log.Information("STATS: {Stats}", stats.ToString());
+                        _log.Information("STATS: {Stats}", stats);
+                    }
+
+                    // Log benchmark info with CPU migration tracking
+                    if (stats.SampledMatches > 0) {
+                        _log.Information("{BenchInfo}", stats.GetBenchInfo());
                     }
                 }
             } catch (Exception ex) {
@@ -311,6 +327,18 @@ namespace KlingerExchange {
 
         private static long TicksToNs(long ticks) {
             return (long)(ticks * (1_000_000_000.0 / Stopwatch.Frequency));
+        }
+
+        // Set thread affinity to a specific CPU core to reduce context switches and CPU migrations
+        // Supports both Windows and Linux for ultra-low latency
+        // Uses Core 4 for matching thread (0-indexed)
+        private void ConfigureThreadAffinity() {
+            const int MATCHING_CORE = 4;
+            bool success = KlingerShared.Threading.ThreadAffinityHelper.SetThreadAffinity(MATCHING_CORE);
+
+            if (!success) {
+                _log.Warning("Failed to configure thread affinity - continuing without CPU pinning");
+            }
         }
     }
 }
