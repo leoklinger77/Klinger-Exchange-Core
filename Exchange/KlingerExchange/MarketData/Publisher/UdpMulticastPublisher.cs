@@ -2,16 +2,11 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using KlingerExchange.MarketData.StructModels;
 using Serilog;
 
 namespace KlingerExchange.MarketData.Publisher;
 
-/// <summary>
-/// UDP publisher for ultra-low latency market data distribution.
-/// Uses pinned memory and unsafe operations for zero-copy sends.
-/// Target: ~2-5µs per send, zero allocation.
-/// Uses UDP multicast for multi-subscriber support.
-/// </summary>
 public class UdpMulticastPublisher : IDisposable
 {
     private readonly UdpClient _udpClient;
@@ -186,7 +181,7 @@ public class UdpMulticastPublisher : IDisposable
     /// Send instrument list at market open (one-time, not performance critical)
     /// Send as single packet - UDP can handle up to ~64KB, our 2624 bytes is fine
     /// </summary>
-    public void PublishInstrumentList(Core.InstrumentInfo[] instruments, uint sequenceNumber)
+    public void PublishInstrumentList(InstrumentInfo[] instruments, uint sequenceNumber)
     {
         try
         {

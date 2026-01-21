@@ -1,23 +1,21 @@
 using KlingerExchange.Config;
+using KlingerExchange.Matching.Domain.Enums;
+using KlingerExchange.Matching.Domain.Struct;
 
 namespace KlingerExchange.Matching.Domain;
 
 /// <summary>
-/// Store de sessões - mutável durante o pregão
+/// Sessions store - changeable during trading hours.
 /// </summary>
-public static class SessionStore
-{
+public static class SessionStore {
     private static InstrumentSession[] _sessions = Array.Empty<InstrumentSession>();
 
-    public static void Initialize(TradingSessionConfig config)
-    {
+    public static void Initialize(TradingSessionConfig config) {
         var maxIndex = config.Instruments.Max(i => i.SymbolIndex);
         _sessions = new InstrumentSession[maxIndex + 1];
 
-        foreach (var dto in config.Instruments)
-        {
-            var status = dto.Status.ToLowerInvariant() switch
-            {
+        foreach (var dto in config.Instruments) {
+            var status = dto.Status.ToLowerInvariant() switch {
                 "preopen" => MarketStatus.PreOpen,
                 "opening" => MarketStatus.Opening,
                 "continuous" => MarketStatus.Continuous,
@@ -29,8 +27,7 @@ public static class SessionStore
                 _ => MarketStatus.Continuous
             };
 
-            _sessions[dto.SymbolIndex] = new InstrumentSession
-            {
+            _sessions[dto.SymbolIndex] = new InstrumentSession {
                 SymbolIndex = dto.SymbolIndex,
                 Status = status,
                 ReferencePriceFixed = (long)(dto.ReferencePrice * 100_000m),
@@ -46,18 +43,16 @@ public static class SessionStore
     }
 
     /// <summary>
-    /// Acesso O(1) à sessão - hot path
+    /// O(1) access to the session - hot path
     /// </summary>
-    public static ref InstrumentSession Get(short symbolIndex)
-    {
+    public static ref InstrumentSession Get(short symbolIndex) {
         if (symbolIndex < 0 || symbolIndex >= _sessions.Length)
             throw new ArgumentOutOfRangeException(nameof(symbolIndex));
 
         return ref _sessions[symbolIndex];
     }
 
-    public static decimal GetPrice(long priceFixed)
-    {
+    public static decimal GetPrice(long priceFixed) {
         return (decimal)priceFixed / 100_000m;
     }
 }

@@ -3,16 +3,14 @@ using System.Collections.Concurrent;
 
 namespace KlingerExchange.Matching.Services;
 
-public sealed class ExecutionReportPool
-{
+public sealed class ExecutionReportPool {
     private readonly ConcurrentBag<ExecutionReport> _pool = new();
     private int _rentCount;
     private int _returnCount;
 
-    public ExecutionReport Rent()
-    {
+    public ExecutionReport Rent() {
         Interlocked.Increment(ref _rentCount);
-        
+
         if (_pool.TryTake(out var report))
             return report;
 
@@ -34,17 +32,15 @@ public sealed class ExecutionReportPool
         );
     }
 
-    public void Return(ExecutionReport report)
-    {
+    public void Return(ExecutionReport report) {
         Interlocked.Increment(ref _returnCount);
-        
+
         // Don't clear - just return to pool
         // Fields will be overwritten on next Rent()
         _pool.Add(report);
     }
 
-    public (int Rented, int Returned, int PoolSize) GetStats()
-    {
+    public (int Rented, int Returned, int PoolSize) GetStats() {
         return (_rentCount, _returnCount, _pool.Count);
     }
 }

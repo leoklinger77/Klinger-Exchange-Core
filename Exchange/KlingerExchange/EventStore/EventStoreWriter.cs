@@ -1,28 +1,12 @@
+using KlingerExchange.EventStore.StructModels;
+using Serilog;
 using System.IO.MemoryMappedFiles;
 using ZeroFormatter;
-using Serilog;
 
 namespace KlingerExchange.EventStore;
 
 /// <summary>
-/// Métricas do EventStore
-/// </summary>
-public readonly struct EventStoreMetrics
-{
-    public long EventsWritten { get; init; }
-    public long EventsFlushed { get; init; }
-    public long EventsDropped { get; init; }
-    public double BufferUtilization { get; init; }
-    public int BufferUsed { get; init; }
-    public int BufferCapacity { get; init; }
-    public long BytesWritten { get; init; }
-    
-    public int EventsPending => (int)(EventsWritten - EventsFlushed);
-    public bool IsHealthy => EventsDropped == 0 && BufferUtilization < 0.90;
-}
-
-/// <summary>
-/// Container para um evento + payload serializado
+/// Container for an event + serialized payload
 /// </summary>
 internal struct EventContainer
 {
@@ -31,9 +15,9 @@ internal struct EventContainer
 }
 
 /// <summary>
-/// EventStore otimizado com Memory-Mapped Files e Group Commit
-/// Arquitetura: Lock-free queue -> Background writer -> MMF com fsync
-/// Target: <10µs latência, zero loss, 100K+ ops/sec
+/// Optimized EventStore with Memory-Mapped Files and Group Commit
+/// Architecture: Lock-free queue -> Background writer -> MMF with fsync
+/// Target: <10µs latency, zero loss, 100K+ ops/sec
 /// </summary>
 public sealed class EventStoreWriter : IDisposable
 {
@@ -52,13 +36,12 @@ public sealed class EventStoreWriter : IDisposable
     private string? _currentFileName;
     private long _eventsDropped;
     
-    // Configurações otimizadas para low latency + durability
-    private const long MMF_SIZE = 1024L * 1024 * 1024; // 1GB pre-allocated
-    private const int QUEUE_SIZE = 131072; // 128K eventos (doubled for safety)
-    private const int BATCH_SIZE = 100; // Eventos por batch
-    private const int FLUSH_INTERVAL_MS = 1; // Flush a cada 1ms (máxima durabilidade)
-    private const double WATERMARK_WARNING = 0.90; // 90% capacity
-    private const double WATERMARK_CRITICAL = 0.95; // 95% capacity
+    private const long MMF_SIZE = 1024L * 1024 * 1024;          // 1GB pre-allocated
+    private const int QUEUE_SIZE = 131072;                      // 128K events (doubled for safety)
+    private const int BATCH_SIZE = 100;                         // Events per batch
+    private const int FLUSH_INTERVAL_MS = 1;                    // Flush every 1ms (maximum durability)
+    private const double WATERMARK_WARNING = 0.90;              // 90% capacity
+    private const double WATERMARK_CRITICAL = 0.95;             // 95% capacity
 
     public EventStoreWriter(string baseDirectory)
     {
@@ -76,17 +59,17 @@ public sealed class EventStoreWriter : IDisposable
         _writerThread = new Thread(WriterThreadLoop)
         {
             Name = "EventStore-Writer",
-            IsBackground = false, // Importante: não é background para garantir flush no shutdown
+            IsBackground = false, // Important: not background to ensure flush on shutdown
             Priority = ThreadPriority.Highest
         };
         _writerThread.Start();
 
-        _log.Information("EventStore iniciado em {Directory}", _baseDirectory);
+        _log.Information("EventStore started in {Directory}", _baseDirectory);
     }
 
     /// <summary>
-    /// Enfileira evento para persistência (non-blocking, ~50ns)
-    /// Retorna sequence number ou -1 se buffer cheio
+    /// Enqueues event for persistence (non-blocking, ~50ns)
+    /// Returns sequence number or -1 if buffer is full
     /// </summary>
     public long Append<T>(EventType eventType, T eventData) where T : struct
     {
@@ -108,7 +91,7 @@ public sealed class EventStoreWriter : IDisposable
         if (sequenceId < 0)
         {
             Interlocked.Increment(ref _eventsDropped);
-            _log.Error("🔴 CRITICAL: EventStore buffer cheio! Evento {SeqNum} perdido. Total dropped: {Dropped}",
+            _log.Error("🔴 CRITICAL: EventStore buffer full! Event {SeqNum} lost. Total dropped: {Dropped}",
                 container.Header.SequenceNumber, _eventsDropped);
             return -1;
         }
@@ -117,32 +100,32 @@ public sealed class EventStoreWriter : IDisposable
     }
 
     /// <summary>
-    /// Aguarda até que o evento seja persistido no disco (durável)
-    /// Target: ~5-10µs em média (amortizado pelo batch)
+    /// Waits until the event is persisted to disk (durable)
+    /// Target: ~5-10µs on average (amortized by batch)
     /// </summary>
     public bool WaitForPersistence(long sequenceId, int timeoutMs = 5000)
     {
-        // Fast path: já foi persistido?
+        // Fast path: already persisted?
         if (Volatile.Read(ref _lastFlushedSequence) >= sequenceId)
             return true;
 
-        // Aguarda flush
+        // Wait for flush
         var sw = System.Diagnostics.Stopwatch.StartNew();
         while (sw.ElapsedMilliseconds < timeoutMs)
         {
             if (Volatile.Read(ref _lastFlushedSequence) >= sequenceId)
                 return true;
 
-            // Sinaliza que há waiters (otimização)
+            // Signal that there are waiters (optimization)
             _flushEvent.Wait(1);
         }
 
-        _log.Warning("Timeout aguardando persistência do evento {SequenceId}", sequenceId);
+        _log.Warning("Timeout waiting for event {SequenceId} persistence", sequenceId);
         return false;
     }
 
     /// <summary>
-    /// Writer thread: consome eventos e faz group commit
+    /// Writer thread: consumes events and performs group commit
     /// </summary>
     private void WriterThreadLoop()
     {
@@ -150,16 +133,16 @@ public sealed class EventStoreWriter : IDisposable
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var watermarkCheckTimer = System.Diagnostics.Stopwatch.StartNew();
 
-        _log.Information("Writer thread iniciado");
+        _log.Information("Writer thread started");
 
         while (!_shutdownEvent.IsSet)
         {
             try
             {
-                // Tenta pegar um batch
+                // Try to get a batch
                 var count = _eventQueue.TryDequeueBatch(batch.AsSpan());
 
-                // Se pegou eventos OU passou tempo limite, faz flush
+                // If got events OR time limit passed, flush
                 var shouldFlush = count > 0 && (count >= BATCH_SIZE || sw.ElapsedMilliseconds >= FLUSH_INTERVAL_MS);
 
                 if (count > 0)
@@ -176,7 +159,7 @@ public sealed class EventStoreWriter : IDisposable
                 }
                 else if (count == 0)
                 {
-                    // Sem eventos, aguarda um pouco
+                    // No events, wait a bit
                     Thread.Sleep(1);
                 }
                 
@@ -189,11 +172,11 @@ public sealed class EventStoreWriter : IDisposable
             }
             catch (Exception ex)
             {
-                _log.Error(ex, "Erro no writer thread");
+                _log.Error(ex, "Error in writer thread");
             }
         }
 
-        // Flush final no shutdown
+        // Final flush on shutdown
         var finalBatch = new EventContainer[BATCH_SIZE];
         var finalCount = _eventQueue.TryDequeueBatch(finalBatch.AsSpan());
         if (finalCount > 0)
@@ -202,61 +185,61 @@ public sealed class EventStoreWriter : IDisposable
             FlushToDisk();
         }
 
-        _log.Information("Writer thread finalizado");
+        _log.Information("Writer thread finished");
     }
 
     /// <summary>
-    /// Escreve batch no MMF (ainda em memória)
+    /// Writes batch to MMF (still in memory)
     /// </summary>
     private void WriteBatch(Span<EventContainer> batch)
     {
         if (_stream == null)
-            throw new InvalidOperationException("Stream não inicializado");
+            throw new InvalidOperationException("Stream not initialized");
 
         foreach (var container in batch)
         {
-            // Escreve header
+            // Write header
             var headerBytes = ZeroFormatterSerializer.Serialize(container.Header);
             _stream.Write(headerBytes, 0, headerBytes.Length);
 
-            // Escreve payload
+            // Write payload
             _stream.Write(container.Payload, 0, container.Payload.Length);
 
             _bytesWritten += headerBytes.Length + container.Payload.Length;
 
-            // Rotaciona arquivo se necessário (evita arquivos muito grandes)
-            if (_bytesWritten > MMF_SIZE * 0.9) // 90% do tamanho
+            // Rotate file if necessary (avoid very large files)
+            if (_bytesWritten > MMF_SIZE * 0.9) // 90% of size
             {
                 FlushToDisk();
                 CreateNewLogFile();
             }
         }
 
-        // Atualiza última sequência escrita (ainda não durável)
+        // Update last written sequence (not yet durable)
         if (batch.Length > 0)
         {
             var lastSeq = batch[batch.Length - 1].Header.SequenceNumber;
-            // Ainda não atualiza _lastFlushedSequence, só após fsync
+            // Does not update _lastFlushedSequence yet, only after fsync
         }
     }
 
     /// <summary>
-    /// Força flush para disco (fsync) - Garante durabilidade
+    /// Forces flush to disk (fsync) - Ensures durability
     /// </summary>
     private void FlushToDisk()
     {
         if (_stream == null)
             return;
 
-        _stream.Flush(); // Força fsync no Windows
+        _stream.Flush(); // Force fsync on Windows
 
-        // Agora podemos considerar como durável
+        // Now we can consider it durable
         var writePos = _eventQueue.ReadPosition;
         Volatile.Write(ref _lastFlushedSequence, writePos);
     }
 
     /// <summary>
-    /// Cria novo arquivo de log (rotação)
+    /// Creates new log file (rotation)
     /// </summary>
     private void CreateNewLogFile()
     {
@@ -276,11 +259,11 @@ public sealed class EventStoreWriter : IDisposable
         _stream = _mmf.CreateViewStream(0, MMF_SIZE, MemoryMappedFileAccess.ReadWrite);
         _bytesWritten = 0;
 
-        _log.Information("Novo arquivo de log criado: {FileName}", _currentFileName);
+        _log.Information("New log file created: {FileName}", _currentFileName);
     }
     
     /// <summary>
-    /// Verifica o nível de uso do buffer e emite warnings
+    /// Checks buffer usage level and emits warnings
     /// </summary>
     private void CheckWatermark()
     {
@@ -289,18 +272,18 @@ public sealed class EventStoreWriter : IDisposable
         
         if (utilization >= WATERMARK_CRITICAL)
         {
-            _log.Error("🔴 CRITICAL: EventStore buffer em {Utilization:P1} ({Used}/{Capacity}). Risco de perda!",
+            _log.Fatal("FATAL: EventStore buffer em {Utilization:P1} ({Used}/{Capacity}). Risco de perda!",
                 utilization, metrics.Used, metrics.Capacity);
         }
         else if (utilization >= WATERMARK_WARNING)
         {
-            _log.Warning("⚠️ WARNING: EventStore buffer em {Utilization:P1} ({Used}/{Capacity})",
+            _log.Warning("WARNING: EventStore buffer at {Utilization:P1} ({Used}/{Capacity})",
                 utilization, metrics.Used, metrics.Capacity);
         }
     }
     
     /// <summary>
-    /// Retorna métricas do EventStore
+    /// Returns EventStore metrics
     /// </summary>
     public EventStoreMetrics GetMetrics()
     {
@@ -319,7 +302,7 @@ public sealed class EventStoreWriter : IDisposable
 
     public void Dispose()
     {
-        _log.Information("Encerrando EventStore...");
+        _log.Information("Shutting down EventStore...");
         
         _shutdownEvent.Set();
         _writerThread.Join(TimeSpan.FromSeconds(10));
@@ -329,7 +312,7 @@ public sealed class EventStoreWriter : IDisposable
         _shutdownEvent.Dispose();
         _flushEvent.Dispose();
 
-        _log.Information("EventStore encerrado. Total de eventos: {Count}", _currentSequenceNumber);
+        _log.Information("EventStore shutdown. Total events: {Count}", _currentSequenceNumber);
     }
 
     public long CurrentSequence => Volatile.Read(ref _currentSequenceNumber);

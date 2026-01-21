@@ -1,10 +1,11 @@
+using KlingerExchange.EventStore.StructModels;
 using Serilog;
 using ZeroFormatter;
 
 namespace KlingerExchange.EventStore;
 
 /// <summary>
-/// Lê eventos do EventStore para replay/recovery
+/// Reads events from the EventStore for replay/recovery.
 /// </summary>
 public sealed class EventStoreReader : IDisposable
 {
@@ -14,14 +15,14 @@ public sealed class EventStoreReader : IDisposable
     public EventStoreReader(string filePath)
     {        
         if (!File.Exists(filePath))
-            throw new FileNotFoundException($"Arquivo de eventos não encontrado: {filePath}");
+            throw new FileNotFoundException($"Event file not found.: {filePath}");
 
         _fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-        _log.Information("EventStoreReader aberto: {FilePath}", filePath);
+        _log.Information("EventStoreReader Open: {FilePath}", filePath);
     }
 
     /// <summary>
-    /// Lê todos os eventos do arquivo sequencialmente
+    /// Reads all events from the file sequentially.
     /// </summary>
     public IEnumerable<(EventHeader Header, object Event)> ReadAll()
     {
@@ -35,20 +36,20 @@ public sealed class EventStoreReader : IDisposable
         {
             EventHeader header;
             object? eventData = null;
-            
-            // Lê header
+
+            // Read header
             var headerSize = GetHeaderSize();
             var headerBuffer = new byte[headerSize];
             var bytesRead = _fileStream.Read(headerBuffer, 0, headerSize);
             
             if (bytesRead < headerSize)
-                break; // Fim do arquivo
+                break; // End of file
 
             try
             {
                 header = ZeroFormatterSerializer.Deserialize<EventHeader>(headerBuffer);
 
-                // Lê payload
+                // Read payload
                 var payloadBuffer = new byte[header.PayloadSize];
                 bytesRead = _fileStream.Read(payloadBuffer, 0, header.PayloadSize);
                 
@@ -58,7 +59,7 @@ public sealed class EventStoreReader : IDisposable
                     break;
                 }
 
-                // Deserializa evento específico
+                // Deserialize specific event
                 eventData = header.EventType switch
                 {
                     EventType.OrderAccepted => ZeroFormatterSerializer.Deserialize<OrderAcceptedEvent>(payloadBuffer),
@@ -66,14 +67,14 @@ public sealed class EventStoreReader : IDisposable
                     EventType.OrderPartiallyFilled => ZeroFormatterSerializer.Deserialize<OrderPartiallyFilledEvent>(payloadBuffer),
                     EventType.OrderCancelled => ZeroFormatterSerializer.Deserialize<OrderCancelledEvent>(payloadBuffer),
                     EventType.Trade => ZeroFormatterSerializer.Deserialize<TradeEvent>(payloadBuffer),
-                    _ => throw new InvalidOperationException($"EventType desconhecido: {header.EventType}")
+                    _ => throw new InvalidOperationException($"Unknown EventType: {header.EventType}")
                 };
 
                 eventsRead++;
             }
             catch (Exception ex)
             {
-                _log.Error(ex, "Erro lendo evento na posição {Position}", _fileStream.Position);
+                _log.Error(ex, "Error reading event at position {Position}", _fileStream.Position);
                 yield break;
             }
 
@@ -81,17 +82,17 @@ public sealed class EventStoreReader : IDisposable
                 yield return (header, eventData);
         }
 
-        _log.Information("Total de eventos lidos: {Count}", eventsRead);
+        _log.Information("Total number of events read: {Count}", eventsRead);
     }
 
     /// <summary>
-    /// Calcula tamanho do header (fixo para ZeroFormatter structs)
+    /// Calculates the header size (fixed for ZeroFormatter structs)
     /// </summary>
     private int GetHeaderSize()
     {
         // EventHeader: long(8) + byte(1) + long(8) + int(4) = ~21 bytes + overhead ZeroFormatter
-        // Vamos ler um bloco maior para garantir
-        return 128; // Oversized para segurança, ZeroFormatter tem overhead variável
+        // Vamos Read a larger block to ensure
+        return 128; // Oversized for safety, ZeroFormatter has variable overhead.
     }
 
     public void Dispose()

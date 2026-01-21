@@ -1,12 +1,10 @@
 ﻿using System.Collections.Concurrent;
-using System.Reflection;
 using System.Text.Json;
 
 namespace KlingerShared.Config {
-    public static class ConfigBase<T> {
+    public class ConfigBase<T> {
 
         private static readonly ConcurrentDictionary<Type, object> _cache = new();
-
         public static T LoadConfig() {
             var type = typeof(T);
 

@@ -1,61 +1,47 @@
-using KlingerExchange.Matching.Domain;
-using KlingerExchange.Matching.Engine;
+using KlingerExchange.EventStore.StructModels;
+using KlingerExchange.Matching.Domain.Enums;
+using KlingerExchange.Matching.Domain.Struct;
+using KlingerExchange.Matching.Engine.Repository;
 using Serilog;
 
 namespace KlingerExchange.EventStore;
 
-/// <summary>
-/// Reconstrói o estado do OrderBook a partir dos eventos
-/// </summary>
-public sealed class OrderBookRebuilder
-{
+public sealed class OrderBookRebuilder {
     private readonly ILogger _log = Log.ForContext<OrderBookRebuilder>();
     private readonly IOrderBookRepository _repository;
     private long _eventsProcessed;
     private long _ordersRebuilt;
 
-    public OrderBookRebuilder(IOrderBookRepository repository)
-    {
+    public OrderBookRebuilder(IOrderBookRepository repository) {
         _repository = repository;
     }
 
-    /// <summary>
-    /// Aplica eventos para reconstruir o estado do OrderBook
-    /// </summary>
-    public void Replay(IEnumerable<(EventHeader Header, object Event)> events)
-    {
-        _log.Information("Iniciando replay de eventos...");
+    public void Replay(IEnumerable<(EventHeader Header, object Event)> events) {
+        _log.Information("Starting event replay...");
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
-        foreach (var (header, eventData) in events)
-        {
-            try
-            {
+        foreach (var (header, eventData) in events) {
+            try {
                 ApplyEvent(header.EventType, eventData);
                 _eventsProcessed++;
 
-                if (_eventsProcessed % 10000 == 0)
-                {
-                    _log.Information("Processados {Count} eventos...", _eventsProcessed);
+                if (_eventsProcessed % 10000 == 0) {
+                    _log.Information("Processed {Count} events...", _eventsProcessed);
                 }
-            }
-            catch (Exception ex)
-            {
-                _log.Error(ex, "Erro aplicando evento {SeqNum} do tipo {Type}", 
+            } catch (Exception ex) {
+                _log.Error(ex, "Error applying event {SeqNum} of type {Type}",
                     header.SequenceNumber, header.EventType);
                 throw;
             }
         }
 
         sw.Stop();
-        _log.Information("Replay concluído: {Events} eventos em {Elapsed}ms ({Rate} eventos/seg)", 
+        _log.Information("Replay completed: {Events} events in {Elapsed}ms ({Rate} events/sec)",
             _eventsProcessed, sw.ElapsedMilliseconds, _eventsProcessed * 1000.0 / sw.ElapsedMilliseconds);
     }
 
-    private void ApplyEvent(EventType eventType, object eventData)
-    {
-        switch (eventType)
-        {
+    private void ApplyEvent(EventType eventType, object eventData) {
+        switch (eventType) {
             case EventType.OrderAccepted:
                 ApplyOrderAccepted((OrderAcceptedEvent)eventData);
                 break;
@@ -73,7 +59,7 @@ public sealed class OrderBookRebuilder
                 break;
 
             case EventType.Trade:
-                // Trade é derivado, não altera o estado do book diretamente
+                // A trade is derivative; it does not directly alter the state of the order book.
                 break;
 
             default:
@@ -82,11 +68,10 @@ public sealed class OrderBookRebuilder
         }
     }
 
-    private void ApplyOrderAccepted(OrderAcceptedEvent evt)
-    {
+    private void ApplyOrderAccepted(OrderAcceptedEvent evt) {
         var book = _repository.GetOrCreateBook(evt.Symbol);
         var side = evt.Side == 1 ? Side.Buy : Side.Sell;
-        
+
         var order = new Order(
             evt.OrderId,
             evt.ClOrdId,
@@ -100,22 +85,18 @@ public sealed class OrderBookRebuilder
         _ordersRebuilt++;
     }
 
-    private void ApplyOrderFilled(OrderFilledEvent evt)
-    {
-        // Ordem foi totalmente preenchida, deve ter sido removida do book
-        // Evento informativo apenas
+    private void ApplyOrderFilled(OrderFilledEvent evt) {
+        // The order has been completely filled; it must have been removed from the book.
+        // Informational event only.
     }
 
-    private void ApplyOrderPartiallyFilled(OrderPartiallyFilledEvent evt)
-    {
-        // Ordem parcialmente preenchida, UpdateOrderFill já foi aplicado via Trade events
-        // Evento informativo apenas
+    private void ApplyOrderPartiallyFilled(OrderPartiallyFilledEvent evt) {
+        // Order partially filled, UpdateOrderFill has already been applied via Trade events
+        // Informational event only
     }
 
-    private void ApplyOrderCancelled(OrderCancelledEvent evt)
-    {
-        if (_repository.TryGetBook(evt.Symbol, out var book) && book != null)
-        {
+    private void ApplyOrderCancelled(OrderCancelledEvent evt) {
+        if (_repository.TryGetBook(evt.Symbol, out var book) && book != null) {
             book.RemoveOrder(evt.OrderId);
         }
     }

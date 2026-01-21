@@ -1,4 +1,5 @@
-﻿using Serilog;
+﻿using KlingerExchange.Config;
+using Serilog;
 using Serilog.Events;
 
 namespace KlingerExchange;
@@ -9,7 +10,7 @@ internal class Program {
         try {
             Log.Information("Starting OMS acceptor");
 
-            var oms = new OmsAcceptors();
+            var oms = new ExchangeAcceptors();
             oms.Initialize();
 
             Log.Information("OMS acceptor stopped");
@@ -26,11 +27,11 @@ internal class Program {
         var baseDirectory = AppContext.BaseDirectory;
         Directory.SetCurrentDirectory(baseDirectory);
 
-        var logDirectory = @"D:\Logs\Exchange";
+        var logDirectory = ExchangeConfig.LoadConfig().LogDirectory!;
         Directory.CreateDirectory(logDirectory);
 
         Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Is(LogEventLevel.Information)  // Production: avoid Debug overhead
+            .MinimumLevel.Is(LogEventLevel.Information)
             .Enrich.FromLogContext()
             .Enrich.WithProperty("Application", "KlingerExchange")
             .WriteTo.Console(

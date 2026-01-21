@@ -1,8 +1,9 @@
+using KlingerShared.Config;
 using System.Text.Json.Serialization;
 
 namespace KlingerExchange.Config;
 
-public sealed class InstrumentsConfig
+public sealed class InstrumentsConfig : ConfigBase<InstrumentsConfig>
 {
     [JsonPropertyName("instruments")]
     public InstrumentDto[] Instruments { get; set; } = Array.Empty<InstrumentDto>();

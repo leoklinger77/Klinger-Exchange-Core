@@ -1,8 +1,9 @@
+using KlingerShared.Config;
 using System.Text.Json.Serialization;
 
 namespace KlingerExchange.Config;
 
-public sealed class TradingSessionConfig
+public sealed class TradingSessionConfig : ConfigBase<TradingSessionConfig>
 {
     [JsonPropertyName("tradingDate")]
     public string TradingDate { get; set; } = string.Empty;

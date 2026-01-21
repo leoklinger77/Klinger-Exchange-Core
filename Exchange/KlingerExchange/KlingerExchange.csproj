@@ -34,14 +34,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="MarketData\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\Shared\KlingerShared\KlingerShared.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Config\ExchangeConfig.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Config\InstrumentsConfig.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

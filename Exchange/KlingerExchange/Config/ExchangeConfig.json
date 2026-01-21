@@ -1,0 +1,5 @@
+{
+  "EnableEventStore": true,
+  "EventStoreDir": "D:\\Logs\\EventStore",
+  "LogDirectory": "D:\\Logs\\Exchange"
+}
