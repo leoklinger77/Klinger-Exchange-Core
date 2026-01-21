@@ -346,8 +346,13 @@ public sealed class MatchingEngine {
     }
 
     private void PublishTrade(string symbol, Fill fill) {
-        if (_marketDataBuffer == null || _symbolMapper == null)
+        if (_marketDataBuffer == null || _symbolMapper == null) {
+            if (_droppedMessages % 1000 == 0) {
+                Log.Warning("Market data buffer not initialized! Dropped {Count} messages", _droppedMessages);
+            }
+            Interlocked.Increment(ref _droppedMessages);
             return;
+        }
 
         var message = new MarketData.Core.TradeMessage {
             MessageType = MarketData.Core.TradeMessage.MSG_TYPE_TRADE,
@@ -362,6 +367,9 @@ public sealed class MatchingEngine {
 
         // Non-blocking write to ring buffer
         if (!_marketDataBuffer.TryWrite(in message)) {
+            if (_droppedMessages % 100 == 0) {
+                Log.Warning("Ring buffer full! Dropped {Count} messages", _droppedMessages);
+            }
             Interlocked.Increment(ref _droppedMessages);
         }
     }

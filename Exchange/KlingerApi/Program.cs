@@ -9,7 +9,6 @@ public class Program {
     public static void Main(string[] args) {
         var builder = WebApplication.CreateBuilder(args);
 
-        // Add services        
         builder.Services.AddOpenApi();
         builder.Services.AddCors(options => {
             options.AddDefaultPolicy(policy => {
@@ -19,20 +18,24 @@ public class Program {
 
         var app = builder.Build();
 
-        // Configure the HTTP request pipeline
         if (app.Environment.IsDevelopment()) {
             app.MapOpenApi();
-            app.MapScalarApiReference(); // Swagger UI at /scalar/v1
+            app.MapScalarApiReference();
         }
 
         app.UseCors();
+
+        // Health check endpoint
+        app.MapGet("/health", () => Results.Ok(new { status = "healthy", service = "KlingerApi" }))
+            .WithName("HealthCheck")
+            .WithDescription("Health check endpoint")
+            .ExcludeFromDescription();
 
         // Endpoint to get instruments list (basic)
         app.MapGet("/instruments", () => {
             var instrumentsConfig = ConfigBase<InstrumentsConfig>.LoadConfig();
             var sessionConfig = ConfigBase<TradingSessionConfig>.LoadConfig();
             
-            // Merge instruments with session data to include reference prices
             var instrumentsWithPrices = instrumentsConfig.Instruments.Select(i => {
                 var session = sessionConfig.Instruments.FirstOrDefault(s => s.SymbolIndex == i.SymbolIndex);
                 return new {
@@ -55,8 +58,9 @@ public class Program {
         .WithDescription("Get all trading instruments with reference prices")
         .WithSummary("Returns the complete list of available instruments with their trading parameters and reference prices");
 
-        app.Logger.LogInformation("KlingerApi starting on http://0.0.0.0:5000");
-        app.Logger.LogInformation("Swagger UI available at http://localhost:5000/scalar/v1");
-        app.Run("http://0.0.0.0:5000");
+        var port = app.Configuration["ASPNETCORE_HTTP_PORTS"] ?? "5000";
+        app.Logger.LogInformation($"KlingerApi starting on http://0.0.0.0:{port}");
+        app.Logger.LogInformation($"Swagger UI available at http://localhost:{port}/scalar/v1");
+        app.Run($"http://0.0.0.0:{port}");
     }
 }

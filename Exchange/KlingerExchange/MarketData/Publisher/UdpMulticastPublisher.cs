@@ -1,9 +1,9 @@
+using KlingerExchange.MarketData.StructModels;
+using Serilog;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using KlingerExchange.MarketData.StructModels;
-using Serilog;
 
 namespace KlingerExchange.MarketData.Publisher;
 
@@ -15,8 +15,7 @@ public class UdpMulticastPublisher : IDisposable {
     private readonly Core.RingBuffer _ringBuffer;
     private readonly Thread _publisherThread;
     private volatile bool _isRunning;
-
-    // Multicast configuration
+        
     public const string MulticastAddress = "239.1.1.100";
     public const int MulticastPort = 9900;
     public const int MTU = 1500; // Maximum Transmission Unit
@@ -42,15 +41,15 @@ public class UdpMulticastPublisher : IDisposable {
             Log.Warning(ex, "Could not set MulticastLoopback");
         }
 
-        // Set multicast interface to loopback for local development
+        // Set multicast interface to any (0.0.0.0) for Docker compatibility
         try {
-            // Use the loopback interface (127.0.0.1) bytes in network order
-            byte[] loopbackBytes = { 127, 0, 0, 1 };
+            // Use any interface (0.0.0.0) bytes in network order - works with Docker port mapping
+            byte[] anyBytes = { 0, 0, 0, 0 };
             _udpClient.Client.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.MulticastInterface,
-                BitConverter.ToInt32(loopbackBytes, 0));
-            Log.Information("Multicast interface set to loopback");
+                BitConverter.ToInt32(anyBytes, 0));
+            Log.Information("Multicast interface set to any (0.0.0.0)");
         } catch (Exception ex) {
-            Log.Warning(ex, "Could not set MulticastInterface to loopback");
+            Log.Warning(ex, "Could not set MulticastInterface to any");
         }
 
         // Set TTL for multicast (1 = local network only)
@@ -78,7 +77,6 @@ public class UdpMulticastPublisher : IDisposable {
         Log.Information("UdpMulticastPublisher initialized on {Address}:{Port}", MulticastAddress, MulticastPort);
     }
 
-    /// <summary>Start the publisher thread</summary>
     public void Start() {
         if (_isRunning)
             return;
@@ -88,14 +86,12 @@ public class UdpMulticastPublisher : IDisposable {
         Log.Information("UdpMulticastPublisher started");
     }
 
-    /// <summary>Stop the publisher thread</summary>
     public void Stop() {
         _isRunning = false;
         _publisherThread.Join(1000);
         Log.Information("UdpMulticastPublisher stopped");
     }
 
-    /// <summary>Publisher loop - runs in dedicated thread with busy-wait</summary>
     private void PublisherLoop() {
         // Thread affinity pinning - cross-platform (Windows & Linux)
         const int PUBLISHER_CORE = 2;
@@ -103,45 +99,34 @@ public class UdpMulticastPublisher : IDisposable {
 
         var spinWait = new SpinWait();
         while (_isRunning) {
-            // Try to read from ring buffer
             if (_ringBuffer.TryRead(out var message)) {
                 PublishMessage(in message);
-                spinWait.Reset(); // Reset on successful read
+                spinWait.Reset();
             } else {
-                // Adaptive wait: SpinOnce does short spins then yields
                 spinWait.SpinOnce();
             }
         }
     }
-
-    /// <summary>Publish a single message via UDP multicast</summary>
+        
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private unsafe void PublishMessage(in Core.TradeMessage message) {
-        // Log.Debug removed - hot path optimization
-
+    private unsafe void PublishMessage(in Core.TradeMessage message) {        
         try {
             // Zero-copy: direct memory copy to pinned buffer
             fixed (byte* bufferPtr = _sendBuffer) {
                 var messagePtr = (byte*)Unsafe.AsPointer(ref Unsafe.AsRef(in message));
                 Buffer.MemoryCopy(messagePtr, bufferPtr, Core.TradeMessage.MessageSize, Core.TradeMessage.MessageSize);
             }
-
-            // Send to multicast group (2-5µs typical)
+                        
             _udpClient.Send(_sendBuffer, Core.TradeMessage.MessageSize, _multicastEndpoint);
         } catch (Exception ex) {
             Log.Error(ex, "Error publishing message {Sequence}", message.SequenceNumber);
         }
     }
 
-    /// <summary>Get statistics about the publisher</summary>
     public (long Available, int Capacity, bool IsFull) GetStats() {
         return (_ringBuffer.Available, _ringBuffer.Capacity, _ringBuffer.IsFull);
     }
 
-    /// <summary>
-    /// Send instrument list at market open (one-time, not performance critical)
-    /// Send as single packet - UDP can handle up to ~64KB, our 2624 bytes is fine
-    /// </summary>
     public void PublishInstrumentList(InstrumentInfo[] instruments, uint sequenceNumber) {
         try {
             var data = Core.InstrumentListSerializer.Serialize(instruments, sequenceNumber);
@@ -149,7 +134,6 @@ public class UdpMulticastPublisher : IDisposable {
             Log.Information("Publishing instrument list: {Count} instruments, {Bytes} bytes as single packet",
                 instruments.Length, data.Length);
 
-            // Send as single UDP packet - no fragmentation needed for this size
             _udpClient.Send(data, data.Length, _multicastEndpoint);
 
             Log.Information("Published instrument list successfully: {Count} instruments, {Bytes} bytes",
