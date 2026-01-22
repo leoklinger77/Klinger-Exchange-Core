@@ -57,42 +57,43 @@ namespace KlingerBroker.Ui.Docking
             // 
             _ladderPanel.BackColor = Color.FromArgb(30, 30, 30);
             _ladderPanel.Dock = DockStyle.Fill;
-            _ladderPanel.Location = new Point(95, 35);
+            _ladderPanel.Location = new Point(95, 55);
             _ladderPanel.Name = "_ladderPanel";
-            _ladderPanel.Size = new Size(405, 768);
+            _ladderPanel.Size = new Size(405, 777);
             _ladderPanel.TabIndex = 2;
             // 
             // _symbolSelector
             // 
+            _symbolSelector.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             _symbolSelector.BackColor = Color.FromArgb(37, 37, 38);
             _symbolSelector.ForeColor = Color.White;
-            _symbolSelector.Location = new Point(5, 5);
+            _symbolSelector.Location = new Point(5, 25);
             _symbolSelector.MinimumSize = new Size(140, 25);
             _symbolSelector.Name = "_symbolSelector";
-            _symbolSelector.Size = new Size(180, 25);
-            _symbolSelector.TabIndex = 0;
+            _symbolSelector.Size = new Size(490, 25);
+            _symbolSelector.TabIndex = 1;
             // 
             // _spreadLabel
             // 
             _spreadLabel.AutoSize = true;
             _spreadLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             _spreadLabel.ForeColor = Color.FromArgb(180, 180, 180);
-            _spreadLabel.Location = new Point(195, 10);
+            _spreadLabel.Location = new Point(5, 5);
             _spreadLabel.Name = "_spreadLabel";
             _spreadLabel.Size = new Size(62, 15);
-            _spreadLabel.TabIndex = 1;
+            _spreadLabel.TabIndex = 0;
             _spreadLabel.Text = "Spread: --";
             // 
             // _topPanel
             // 
             _topPanel.BackColor = Color.FromArgb(37, 37, 38);
-            _topPanel.Controls.Add(_spreadLabel);
             _topPanel.Controls.Add(_symbolSelector);
+            _topPanel.Controls.Add(_spreadLabel);
             _topPanel.Dock = DockStyle.Top;
             _topPanel.Location = new Point(0, 0);
             _topPanel.Name = "_topPanel";
             _topPanel.Padding = new Padding(5);
-            _topPanel.Size = new Size(500, 35);
+            _topPanel.Size = new Size(500, 55);
             _topPanel.TabIndex = 0;
             // 
             // _leftPanel
@@ -110,9 +111,9 @@ namespace KlingerBroker.Ui.Docking
             _leftPanel.Controls.Add(_qtyTextBox);
             _leftPanel.Controls.Add(_qtyLabel);
             _leftPanel.Dock = DockStyle.Left;
-            _leftPanel.Location = new Point(0, 35);
+            _leftPanel.Location = new Point(0, 55);
             _leftPanel.Name = "_leftPanel";
-            _leftPanel.Size = new Size(95, 768);
+            _leftPanel.Size = new Size(95, 777);
             _leftPanel.TabIndex = 1;
             // 
             // _cancelAllBtn
@@ -123,7 +124,7 @@ namespace KlingerBroker.Ui.Docking
             _cancelAllBtn.FlatStyle = FlatStyle.Flat;
             _cancelAllBtn.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
             _cancelAllBtn.ForeColor = Color.White;
-            _cancelAllBtn.Location = new Point(5, 738);
+            _cancelAllBtn.Location = new Point(5, 767);
             _cancelAllBtn.Name = "_cancelAllBtn";
             _cancelAllBtn.Size = new Size(85, 26);
             _cancelAllBtn.TabIndex = 10;
@@ -138,7 +139,7 @@ namespace KlingerBroker.Ui.Docking
             _cancelSellsBtn.FlatStyle = FlatStyle.Flat;
             _cancelSellsBtn.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
             _cancelSellsBtn.ForeColor = Color.White;
-            _cancelSellsBtn.Location = new Point(5, 708);
+            _cancelSellsBtn.Location = new Point(5, 737);
             _cancelSellsBtn.Name = "_cancelSellsBtn";
             _cancelSellsBtn.Size = new Size(85, 26);
             _cancelSellsBtn.TabIndex = 9;
@@ -153,7 +154,7 @@ namespace KlingerBroker.Ui.Docking
             _cancelBuysBtn.FlatStyle = FlatStyle.Flat;
             _cancelBuysBtn.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
             _cancelBuysBtn.ForeColor = Color.White;
-            _cancelBuysBtn.Location = new Point(5, 678);
+            _cancelBuysBtn.Location = new Point(5, 707);
             _cancelBuysBtn.Name = "_cancelBuysBtn";
             _cancelBuysBtn.Size = new Size(85, 26);
             _cancelBuysBtn.TabIndex = 8;
@@ -271,7 +272,7 @@ namespace KlingerBroker.Ui.Docking
             Controls.Add(_topPanel);
             ForeColor = Color.White;
             Name = "VerticalBookControl";
-            Size = new Size(500, 803);
+            Size = new Size(500, 832);
             _topPanel.ResumeLayout(false);
             _topPanel.PerformLayout();
             _leftPanel.ResumeLayout(false);

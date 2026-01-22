@@ -25,6 +25,9 @@ public sealed class VerticalBookService : IDisposable
     
     // Tick size per symbol
     private readonly ConcurrentDictionary<short, decimal> _tickSizes = new();
+    
+    // Lot size per symbol
+    private readonly ConcurrentDictionary<short, int> _lotSizes = new();
 
     private readonly Dictionary<short, string> _symbolNames = new();
     private long _messagesReceived = 0;
@@ -95,9 +98,11 @@ public sealed class VerticalBookService : IDisposable
         var symbol = instrument.Symbol;
         var referencePrice = instrument.ReferencePrice > 0 ? instrument.ReferencePrice : instrument.PreviousClose;
         var tickSize = instrument.TickSize > 0 ? instrument.TickSize : 0.01m;
+        var lotSize = instrument.LotSize > 0 ? instrument.LotSize : 1;
         
         _symbolNames[symbolIndex] = symbol;
         _tickSizes[symbolIndex] = tickSize;
+        _lotSizes[symbolIndex] = lotSize;
         _bids[symbolIndex] = new SortedDictionary<decimal, long>(Comparer<decimal>.Create((a, b) => b.CompareTo(a)));
         _asks[symbolIndex] = new SortedDictionary<decimal, long>();
         _workingOrders[symbolIndex] = new ConcurrentDictionary<decimal, (Side, int)>();
@@ -184,29 +189,72 @@ public sealed class VerticalBookService : IDisposable
         if (!_bids.ContainsKey(symbolIdx) || !_asks.ContainsKey(symbolIdx))
             return;
 
+        var tickSize = GetTickSize(symbolIdx);
+
         lock (_bids[symbolIdx])
         {
+            // Don't clear the entire book, just update incrementally
+            // Decay old levels slowly instead of clearing
             if (_bids[symbolIdx].Count > 200)
-                _bids[symbolIdx].Clear();
+            {
+                // Remove only the furthest levels
+                var toRemove = _bids[symbolIdx].Keys.Skip(DEPTH * 2).ToList();
+                foreach (var key in toRemove)
+                    _bids[symbolIdx].Remove(key);
+            }
 
+            // Update bid levels around the last traded price
+            // Use graduated quantities - more volume closer to market
             for (int i = 1; i <= DEPTH; i++)
             {
-                var bidPrice = Math.Round(price - i * 0.01m, 2);
-                var bidQty = qty * (51 - i) / 3;
-                _bids[symbolIdx][bidPrice] = bidQty;
+                var bidPrice = Math.Round(price - i * tickSize, GetDecimalPlaces(tickSize));
+                
+                // Graduated quantity: more volume near the market
+                var baseQty = qty * 3; // Base multiplier
+                var depthFactor = (DEPTH + 1 - i) / (decimal)DEPTH; // 1.0 at best bid, 0.0 at worst
+                var levelQty = (long)(baseQty * depthFactor * depthFactor); // Quadratic falloff
+                
+                // Update or add the level
+                if (_bids[symbolIdx].ContainsKey(bidPrice))
+                {
+                    // Smooth update: blend old and new (80% old, 20% new)
+                    var oldQty = _bids[symbolIdx][bidPrice];
+                    _bids[symbolIdx][bidPrice] = (long)(oldQty * 0.8m + levelQty * 0.2m);
+                }
+                else
+                {
+                    _bids[symbolIdx][bidPrice] = levelQty;
+                }
             }
         }
 
         lock (_asks[symbolIdx])
         {
+            // Same logic for asks
             if (_asks[symbolIdx].Count > 200)
-                _asks[symbolIdx].Clear();
+            {
+                var toRemove = _asks[symbolIdx].Keys.Skip(DEPTH * 2).ToList();
+                foreach (var key in toRemove)
+                    _asks[symbolIdx].Remove(key);
+            }
 
             for (int i = 1; i <= DEPTH; i++)
             {
-                var askPrice = Math.Round(price + i * 0.01m, 2);
-                var askQty = qty * (51 - i) / 3;
-                _asks[symbolIdx][askPrice] = askQty;
+                var askPrice = Math.Round(price + i * tickSize, GetDecimalPlaces(tickSize));
+                
+                var baseQty = qty * 3;
+                var depthFactor = (DEPTH + 1 - i) / (decimal)DEPTH;
+                var levelQty = (long)(baseQty * depthFactor * depthFactor);
+                
+                if (_asks[symbolIdx].ContainsKey(askPrice))
+                {
+                    var oldQty = _asks[symbolIdx][askPrice];
+                    _asks[symbolIdx][askPrice] = (long)(oldQty * 0.8m + levelQty * 0.2m);
+                }
+                else
+                {
+                    _asks[symbolIdx][askPrice] = levelQty;
+                }
             }
         }
     }
@@ -227,6 +275,11 @@ public sealed class VerticalBookService : IDisposable
     public decimal GetTickSize(short symbolIndex)
     {
         return _tickSizes.TryGetValue(symbolIndex, out var tickSize) ? tickSize : 0.01m;
+    }
+    
+    public int GetLotSize(short symbolIndex)
+    {
+        return _lotSizes.TryGetValue(symbolIndex, out var lotSize) ? lotSize : 1;
     }
 
     public List<(decimal price, long bidQty, long askQty)> GetConsolidatedBook(short symbolIndex)

@@ -28,8 +28,7 @@ namespace KlingerClient.Docking.Marketwatch
         /// Required method for Designer support - do not modify 
         /// the contents of this method with the code editor.
         /// </summary>
-        private void InitializeComponent()
-        {
+        private void InitializeComponent() {
             _topPanel = new Panel();
             _addAllButton = new Button();
             _addLabel = new Label();
@@ -41,6 +40,7 @@ namespace KlingerClient.Docking.Marketwatch
             // 
             // _topPanel
             // 
+            _topPanel.BackColor = Color.FromArgb(37, 37, 38);
             _topPanel.Controls.Add(_addAllButton);
             _topPanel.Controls.Add(_addLabel);
             _topPanel.Controls.Add(selectInstrumentControl1);
@@ -48,9 +48,8 @@ namespace KlingerClient.Docking.Marketwatch
             _topPanel.Location = new Point(0, 0);
             _topPanel.Name = "_topPanel";
             _topPanel.Padding = new Padding(5);
-            _topPanel.Size = new Size(600, 38);
+            _topPanel.Size = new Size(520, 38);
             _topPanel.TabIndex = 0;
-            _topPanel.BackColor = Color.FromArgb(37, 37, 38);
             // 
             // _addAllButton
             // 
@@ -58,7 +57,7 @@ namespace KlingerClient.Docking.Marketwatch
             _addAllButton.BackColor = Color.FromArgb(45, 45, 48);
             _addAllButton.FlatStyle = FlatStyle.Flat;
             _addAllButton.ForeColor = Color.White;
-            _addAllButton.Location = new Point(505, 7);
+            _addAllButton.Location = new Point(400, 5);
             _addAllButton.Name = "_addAllButton";
             _addAllButton.Size = new Size(90, 24);
             _addAllButton.TabIndex = 2;
@@ -83,7 +82,7 @@ namespace KlingerClient.Docking.Marketwatch
             selectInstrumentControl1.Location = new Point(45, 5);
             selectInstrumentControl1.MinimumSize = new Size(200, 28);
             selectInstrumentControl1.Name = "selectInstrumentControl1";
-            selectInstrumentControl1.Size = new Size(450, 28);
+            selectInstrumentControl1.Size = new Size(345, 28);
             selectInstrumentControl1.TabIndex = 1;
             // 
             // dataGridView1
@@ -93,7 +92,7 @@ namespace KlingerClient.Docking.Marketwatch
             dataGridView1.Location = new Point(0, 38);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowHeadersWidth = 51;
-            dataGridView1.Size = new Size(600, 362);
+            dataGridView1.Size = new Size(520, 362);
             dataGridView1.TabIndex = 1;
             // 
             // MarketwatchControl
@@ -103,8 +102,9 @@ namespace KlingerClient.Docking.Marketwatch
             BackColor = Color.FromArgb(30, 30, 30);
             Controls.Add(dataGridView1);
             Controls.Add(_topPanel);
+            MinimumSize = new Size(520, 200);
             Name = "MarketwatchControl";
-            Size = new Size(600, 400);
+            Size = new Size(520, 400);
             _topPanel.ResumeLayout(false);
             _topPanel.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();

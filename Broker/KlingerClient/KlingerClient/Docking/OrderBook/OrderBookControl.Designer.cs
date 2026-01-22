@@ -32,33 +32,13 @@ namespace KlingerBroker.Ui.Docking.OrderBook
         private SelectInstrumentControl _symbolSelector;
         private Panel _topPanel;
 
-        private void InitializeComponent()
-        {
+        private void InitializeComponent() {
             _grid = new DataGridView();
             _symbolSelector = new SelectInstrumentControl();
             _topPanel = new Panel();
             ((System.ComponentModel.ISupportInitialize)_grid).BeginInit();
             _topPanel.SuspendLayout();
             SuspendLayout();
-            // 
-            // _topPanel
-            // 
-            _topPanel.Controls.Add(_symbolSelector);
-            _topPanel.Dock = DockStyle.Top;
-            _topPanel.Location = new Point(0, 0);
-            _topPanel.Name = "_topPanel";
-            _topPanel.Padding = new Padding(5);
-            _topPanel.Size = new Size(600, 35);
-            _topPanel.TabIndex = 0;
-            _topPanel.BackColor = Color.FromArgb(37, 37, 38);
-            // 
-            // _symbolSelector
-            // 
-            _symbolSelector.Dock = DockStyle.Fill;
-            _symbolSelector.Location = new Point(5, 5);
-            _symbolSelector.Name = "_symbolSelector";
-            _symbolSelector.Size = new Size(590, 25);
-            _symbolSelector.TabIndex = 0;
             // 
             // _grid
             // 
@@ -67,18 +47,40 @@ namespace KlingerBroker.Ui.Docking.OrderBook
             _grid.Location = new Point(0, 35);
             _grid.Name = "_grid";
             _grid.RowHeadersWidth = 51;
-            _grid.Size = new Size(600, 365);
+            _grid.Size = new Size(495, 365);
             _grid.TabIndex = 1;
+            // 
+            // _symbolSelector
+            // 
+            _symbolSelector.BackColor = Color.FromArgb(37, 37, 38);
+            _symbolSelector.Dock = DockStyle.Fill;
+            _symbolSelector.ForeColor = Color.White;
+            _symbolSelector.Location = new Point(5, 5);
+            _symbolSelector.MinimumSize = new Size(200, 30);
+            _symbolSelector.Name = "_symbolSelector";
+            _symbolSelector.Size = new Size(485, 30);
+            _symbolSelector.TabIndex = 0;
+            // 
+            // _topPanel
+            // 
+            _topPanel.BackColor = Color.FromArgb(37, 37, 38);
+            _topPanel.Controls.Add(_symbolSelector);
+            _topPanel.Dock = DockStyle.Top;
+            _topPanel.Location = new Point(0, 0);
+            _topPanel.Name = "_topPanel";
+            _topPanel.Padding = new Padding(5);
+            _topPanel.Size = new Size(495, 35);
+            _topPanel.TabIndex = 0;
             // 
             // OrderBookControl
             // 
             Controls.Add(_grid);
             Controls.Add(_topPanel);
+            MinimumSize = new Size(495, 400);
             Name = "OrderBookControl";
-            Size = new Size(600, 400);
+            Size = new Size(495, 400);
             ((System.ComponentModel.ISupportInitialize)_grid).EndInit();
             _topPanel.ResumeLayout(false);
-            _topPanel.PerformLayout();
             ResumeLayout(false);
         }
 

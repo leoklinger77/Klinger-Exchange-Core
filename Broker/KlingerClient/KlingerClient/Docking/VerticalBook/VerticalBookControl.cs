@@ -158,6 +158,11 @@ public partial class VerticalBookControl : UserControl {
         // Symbol selector
         _symbolSelector.SelectionChanged += (s, e) => {
             _service.CurrentSymbol = _symbolSelector.SelectedSymbolIndex;
+            
+            // Update quantity textbox with the LotSize for the selected symbol
+            var lotSize = _service.GetLotSize(_symbolSelector.SelectedSymbolIndex);
+            _qtyTextBox.Text = lotSize.ToString();
+            
             _dataDirty = true;
             InvalidateLadder();
         };
@@ -284,11 +289,17 @@ public partial class VerticalBookControl : UserControl {
         decimal bestAsk = consolidatedBook.Where(x => x.askQty > 0).Select(x => x.price).DefaultIfEmpty(decimal.MaxValue).Min();
         if (bestAsk == decimal.MaxValue) bestAsk = 0;
 
-        // Update spread label
+        // Update spread label on UI thread
         if (bestBid > 0 && bestAsk > 0 && bestAsk < decimal.MaxValue) {
             var spread = bestAsk - bestBid;
             var ltpText = lastTradedPrice.HasValue ? $"LTP: {lastTradedPrice.Value:F2}  |  " : "";
-            _spreadLabel.Text = $"{ltpText}Spread: {spread:F2}  |  Bid: {bestBid:F2}  |  Ask: {bestAsk:F2}";
+            var labelText = $"{ltpText}Spread: {spread:F2}  |  Bid: {bestBid:F2}  |  Ask: {bestAsk:F2}";
+            
+            if (_spreadLabel.InvokeRequired) {
+                _spreadLabel.BeginInvoke(() => _spreadLabel.Text = labelText);
+            } else {
+                _spreadLabel.Text = labelText;
+            }
         }
 
         // Build row data

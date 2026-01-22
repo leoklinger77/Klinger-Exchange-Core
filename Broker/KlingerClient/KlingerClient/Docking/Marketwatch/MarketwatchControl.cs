@@ -92,14 +92,22 @@ public partial class MarketwatchControl : UserControl
             DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N0" }
         });
 
-        dataGridView1.Columns.Add(new DataGridViewButtonColumn
+        // Add Remove button column with better styling
+        var removeColumn = new DataGridViewButtonColumn
         {
             Name = "Remove",
             HeaderText = "",
-            Text = "X",
+            Text = "✕",
             UseColumnTextForButtonValue = true,
-            Width = 30
-        });
+            Width = 50,
+            FlatStyle = FlatStyle.Flat
+        };
+        removeColumn.DefaultCellStyle.BackColor = Color.FromArgb(45, 45, 48);
+        removeColumn.DefaultCellStyle.ForeColor = Color.White;
+        removeColumn.DefaultCellStyle.SelectionBackColor = Color.FromArgb(200, 50, 50);
+        removeColumn.DefaultCellStyle.SelectionForeColor = Color.White;
+        removeColumn.DefaultCellStyle.Font = new Font(dataGridView1.Font.FontFamily, 10, FontStyle.Bold);
+        dataGridView1.Columns.Add(removeColumn);
 
         // Handle remove button click
         dataGridView1.CellClick += DataGridView1_CellClick;

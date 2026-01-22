@@ -18,6 +18,7 @@ public sealed class ChartsService : IDisposable
 
     public event EventHandler<CandleUpdateEventArgs>? CandleUpdated;
     public event EventHandler<CandleUpdateEventArgs>? NewCandleCreated;
+    public event EventHandler? OnSymbolsUpdated;
 
     public short CurrentSymbol { get; set; }
     public ChartTimeframe CurrentTimeframe { get; set; } = ChartTimeframe.S5;
@@ -50,6 +51,8 @@ public sealed class ChartsService : IDisposable
                 SymbolNames[inst.SymbolIndex] = inst.Symbol;
             }
         }
+        
+        OnSymbolsUpdated?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnTrade(TradeMessage trade)

@@ -23,9 +23,30 @@ public sealed class MarketwatchDock : DockContent
         Name = $"{DockContentIds.Marketwatch}_{_id}";
         Text = _id > 0 ? $"Marketwatch #{_id}" : "Marketwatch";
         HideOnClose = true;
-
+        
+        // Set fixed size when floating
+        DockAreas = DockAreas.Float | DockAreas.Document | DockAreas.DockLeft | DockAreas.DockRight | DockAreas.DockTop | DockAreas.DockBottom;
+        FloatPane = null;
+        
         _control.Dock = DockStyle.Fill;
         Controls.Add(_control);
+        
+        // Set the form to have fixed width but variable height when floating
+        this.DockStateChanged += (s, e) =>
+        {
+            if (this.DockState == DockState.Float)
+            {
+                if (this.FloatPane?.FloatWindow != null)
+                {
+                    var window = this.FloatPane.FloatWindow;
+                    window.ClientSize = new Size(520, 400);
+                    window.MinimumSize = new Size(520, 400);
+                    window.MaximumSize = new Size(520, 2000);
+                    window.FormBorderStyle = FormBorderStyle.Sizable;
+                    window.MaximizeBox = false;
+                }
+            }
+        };
 
         _logger.Information("MarketwatchDock {Id} initialized", _id);
 

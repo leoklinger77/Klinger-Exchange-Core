@@ -24,10 +24,30 @@ public sealed class ChartsDock : DockContent
         Name = $"{DockContentIds.Charts}_{_id}";
         Text = _id > 0 ? $"Chart #{_id}" : "Chart";
         HideOnClose = true;
+        
+        // Set minimum size when floating - allow expansion in all directions
+        DockAreas = DockAreas.Float | DockAreas.Document | DockAreas.DockLeft | DockAreas.DockRight | DockAreas.DockTop | DockAreas.DockBottom;
+        FloatPane = null;
 
         BackColor = Color.FromArgb(22, 22, 26);
         _control.Dock = DockStyle.Fill;
         Controls.Add(_control);
+        
+        // Set the form to allow free resizing with minimum size when floating
+        this.DockStateChanged += (s, e) =>
+        {
+            if (this.DockState == DockState.Float)
+            {
+                if (this.FloatPane?.FloatWindow != null)
+                {
+                    var window = this.FloatPane.FloatWindow;
+                    window.ClientSize = new Size(800, 500);
+                    window.MinimumSize = new Size(800, 400);
+                    window.FormBorderStyle = FormBorderStyle.Sizable;
+                    window.MaximizeBox = true;
+                }
+            }
+        };
 
         _logger.Information("ChartsDock {Id} initialized", _id);
 
