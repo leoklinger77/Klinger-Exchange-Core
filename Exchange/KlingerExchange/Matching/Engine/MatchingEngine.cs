@@ -186,7 +186,7 @@ public sealed class MatchingEngine {
                                       .ToList();
 
             if (eventFiles.Count == 0) {
-                Log.Information("No event files found. Starting with a clean state");
+                Log.Information("No event files found. Starting with clean state");
                 return;
             }
 
@@ -195,18 +195,48 @@ public sealed class MatchingEngine {
 
             var rebuilder = new OrderBookRebuilder(_repository);
             long totalEvents = 0;
+            var progressTimer = System.Diagnostics.Stopwatch.StartNew();
 
             foreach (var eventFile in eventFiles) {
                 Log.Information("Reading file: {File}", Path.GetFileName(eventFile));
+                
+                var fileInfo = new FileInfo(eventFile);
+                Log.Information("File size: {SizeMB:F2} MB", fileInfo.Length / (1024.0 * 1024.0));
 
                 using var reader = new EventStoreReader(eventFile);
-                var events = reader.ReadAll().ToList();
+                
+                // ✅ STREAMING: Process events without loading all into memory
+                long fileEvents = 0;
+                var batch = new List<(EventHeader, object)>(10000); // Process in 10K batches
+                
+                foreach (var evt in reader.ReadAll()) {
+                    batch.Add(evt);
+                    fileEvents++;
+                    totalEvents++;
+                    
+                    // Process batch when full
+                    if (batch.Count >= 10000) {
+                        rebuilder.Replay(batch);
+                        batch.Clear();
+                        
+                        // Log progress every 5 seconds
+                        if (progressTimer.ElapsedMilliseconds > 5000) {
+                            var rate = totalEvents * 1000.0 / sw.ElapsedMilliseconds;
+                            Log.Information("⏳ Progress: {TotalEvents:N0} events processed ({Rate:F0} events/sec)",
+                                totalEvents, rate);
+                            progressTimer.Restart();
+                        }
+                    }
+                }
+                
+                // Process remaining events
+                if (batch.Count > 0) {
+                    rebuilder.Replay(batch);
+                    batch.Clear();
+                }
 
-                Log.Information("File {File} contains {Count} events",
-                    Path.GetFileName(eventFile), events.Count);
-
-                rebuilder.Replay(events);
-                totalEvents += events.Count;
+                Log.Information("File {File} processed: {Count:N0} events",
+                    Path.GetFileName(eventFile), fileEvents);
             }
 
             sw.Stop();
@@ -217,11 +247,10 @@ public sealed class MatchingEngine {
                 Log.Information("Next OrderId adjusted to: {OrderId}", _nextOrderId);
             }
 
-            Log.Information("RECOVERY COMPLETE: {TotalEvents} events reprocessed in {Elapsed}ms ({Rate:F0} events/sec)",
+            Log.Information("✅ RECOVERY COMPLETE: {TotalEvents:N0} events reprocessed in {Elapsed}ms ({Rate:F0} events/sec)",
                 totalEvents, sw.ElapsedMilliseconds, totalEvents * 1000.0 / Math.Max(1, sw.ElapsedMilliseconds));
         } catch (Exception ex) {
-            Log.Error(ex, "Error during recovery. Starting with a clean state.");
-            // Since it's for study purposes, the application doesn't fail - it just starts with a clean state.
+            Log.Error(ex, "❌ Error during recovery. Starting with a clean state.");
         }
     }
 

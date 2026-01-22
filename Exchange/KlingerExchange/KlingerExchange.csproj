@@ -38,6 +38,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Config\BrokerConfig.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Config\ExchangeConfig.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

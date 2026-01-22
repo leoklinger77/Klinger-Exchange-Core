@@ -91,6 +91,13 @@ namespace KlingerExchange {
             _log.Information("Market data publisher injected into MatchingEngine");
         }
 
+        public void Dispose() {
+            _log.Information("Disposing ExchangeApplication...");
+            _reportDispatcher.Dispose();
+            _matchingEngine.Dispose();
+            _log.Information("ExchangeApplication disposed");
+        }
+
         public void FromAdmin(Message message, SessionID sessionID) {
             // Removed logging for performance
         }

@@ -63,9 +63,21 @@ namespace KlingerExchange {
             Log.Information("Instrument list available via KlingerApi REST endpoint - UDP dedicated to market data only");
 
             var stopping = false;
+            
+            // Handle Ctrl+C
             Console.CancelKeyPress += (_, e) => {
                 e.Cancel = true;
                 stopping = true;
+                Log.Information("Ctrl+C received, shutting down gracefully...");
+            };
+            
+            // Handle Visual Studio Stop / SIGTERM
+            AppDomain.CurrentDomain.ProcessExit += (_, _) => {
+                if (!stopping) {
+                    stopping = true;
+                    Log.Information("ProcessExit received (Visual Studio Stop?), flushing EventStore...");
+                    myApp.Dispose();
+                }
             };
             
             while (!stopping)
@@ -85,6 +97,11 @@ namespace KlingerExchange {
 
             Log.Information("Stopping FIX acceptor");
             acceptor.Stop();
+            
+            Log.Information("Disposing ExchangeApplication (flush EventStore)");
+            myApp.Dispose();
+            
+            Log.Information("Shutdown complete");
         }
     }
 }

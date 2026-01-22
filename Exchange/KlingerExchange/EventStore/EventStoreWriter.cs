@@ -53,7 +53,7 @@ public sealed class EventStoreWriter : IDisposable
         _lastFlushedSequence = -1;
         
         Directory.CreateDirectory(_baseDirectory);
-        CreateNewLogFile();
+        OpenOrCreateLogFile();
 
         // Start background writer thread
         _writerThread = new Thread(WriterThreadLoop)
@@ -239,6 +239,61 @@ public sealed class EventStoreWriter : IDisposable
     }
 
     /// <summary>
+    /// Opens existing log file or creates new one
+    /// </summary>
+    private void OpenOrCreateLogFile()
+    {
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd");
+        _currentFileName = Path.Combine(_baseDirectory, $"events_{timestamp}.dat");
+        var metaFileName = Path.Combine(_baseDirectory, $"events_{timestamp}.meta");
+
+        // Check if file exists and has metadata
+        if (File.Exists(_currentFileName) && File.Exists(metaFileName))
+        {
+            try
+            {
+                // Read actual data size from metadata file
+                var metaText = File.ReadAllText(metaFileName);
+                if (long.TryParse(metaText, out long actualSize) && actualSize > 0)
+                {
+                    _bytesWritten = actualSize;
+                    
+                    // Ensure file is MMF_SIZE for memory mapping
+                    using (var fs = new FileStream(_currentFileName, FileMode.Open, FileAccess.Write))
+                    {
+                        if (fs.Length != MMF_SIZE)
+                        {
+                            fs.SetLength(MMF_SIZE);
+                        }
+                    }
+                    
+                    _mmf = MemoryMappedFile.CreateFromFile(
+                        _currentFileName,
+                        FileMode.Open,
+                        null,
+                        MMF_SIZE,
+                        MemoryMappedFileAccess.ReadWrite);
+
+                    _stream = _mmf.CreateViewStream(0, MMF_SIZE, MemoryMappedFileAccess.ReadWrite);
+                    _stream.Position = _bytesWritten; // Continue from where we left off
+                    
+                    _log.Information("Reopened existing log file: {FileName} ({Bytes:N0} bytes)",
+                        _currentFileName, _bytesWritten);
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.Warning(ex, "Failed to read metadata file, creating new log file");
+            }
+        }
+        
+        // Create new file
+        CreateNewLogFile();
+    }
+    
+    
+    /// <summary>
     /// Creates new log file (rotation)
     /// </summary>
     private void CreateNewLogFile()
@@ -307,8 +362,39 @@ public sealed class EventStoreWriter : IDisposable
         _shutdownEvent.Set();
         _writerThread.Join(TimeSpan.FromSeconds(10));
 
-        _stream?.Dispose();
-        _mmf?.Dispose();
+        // Truncate file to actual written size before closing
+        if (_stream != null && _bytesWritten > 0 && !string.IsNullOrEmpty(_currentFileName))
+        {
+            try
+            {
+                _stream.Dispose();
+                _mmf?.Dispose();
+                
+                // Reopen file and truncate to actual size
+                using (var fs = new FileStream(_currentFileName, FileMode.Open, FileAccess.Write))
+                {
+                    fs.SetLength(_bytesWritten);
+                }
+                
+                // Save metadata file with actual size
+                var timestamp = DateTime.UtcNow.ToString("yyyyMMdd");
+                var metaFileName = Path.Combine(_baseDirectory, $"events_{timestamp}.meta");
+                File.WriteAllText(metaFileName, _bytesWritten.ToString());
+                
+                _log.Information("File truncated to {Bytes:N0} bytes ({Events} events)",
+                    _bytesWritten, _currentSequenceNumber);
+            }
+            catch (Exception ex)
+            {
+                _log.Error(ex, "Failed to truncate file");
+            }
+        }
+        else
+        {
+            _stream?.Dispose();
+            _mmf?.Dispose();
+        }
+        
         _shutdownEvent.Dispose();
         _flushEvent.Dispose();
 
