@@ -34,7 +34,7 @@ public sealed class FixInitiator : IDisposable
 
         var settings = new SessionSettings(settingsPath);
         IApplication application = new ClientFixApplication(Router);
-        IMessageStoreFactory storeFactory = new MemoryStoreFactory();
+        IMessageStoreFactory storeFactory = new FileStoreFactory(settings);
         ILogFactory logFactory = new NullLogFactory();
 
         _initiator = new SocketInitiator(
