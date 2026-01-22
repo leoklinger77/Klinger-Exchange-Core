@@ -1,6 +1,31 @@
 [
   {
-    "Name": "New Profile",
+    "Name": "Exchange",
+    "Projects": [
+      {
+        "Path": "Exchange\\KlingerApi\\KlingerApi.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Exchange\\KlingerExchange\\KlingerExchange.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Broker\\KlingerOms\\KlingerOms.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Broker\\KlingerClient\\KlingerClient\\KlingerClient.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Exchange\\KlingerMarketSimulator\\KlingerSimulator.csproj",
+        "Action": "Start"
+      }
+    ]
+  },
+  {
+    "Name": "NotSimulator",
     "Projects": [
       {
         "Path": "Exchange\\KlingerApi\\KlingerApi.csproj",

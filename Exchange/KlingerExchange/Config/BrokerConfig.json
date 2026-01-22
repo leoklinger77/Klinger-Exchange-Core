@@ -1,3 +1,139 @@
 {
-
+  "Broker": {
+    "102": {
+      "Id": 102,
+      "Code": "XP",
+      "Name": "XP Investimentos CCTVM S.A.",
+      "Country": "BR",
+      "ParticipantType": "BROKER",
+      "Segments": [ "BOVESPA", "BMF" ],
+      "Status": "ACTIVE"
+    },
+    "85": {
+      "Id": 85,
+      "Code": "BTG",
+      "Name": "BTG Pactual CTVM S.A.",
+      "Country": "BR",
+      "ParticipantType": "BROKER",
+      "Segments": [ "BOVESPA", "BMF" ],
+      "Status": "ACTIVE"
+    },
+    "114": {
+      "Id": 114,
+      "Code": "ITA",
+      "Name": "Itaú Corretora de Valores S.A.",
+      "Country": "BR",
+      "ParticipantType": "BROKER",
+      "Segments": [ "BOVESPA", "BMF" ],
+      "Status": "ACTIVE"
+    },
+    "120": {
+      "Id": 120,
+      "Code": "BBI",
+      "Name": "BB Investimentos DTVM S.A.",
+      "Country": "BR",
+      "ParticipantType": "BROKER",
+      "Segments": [ "BOVESPA", "BMF" ],
+      "Status": "ACTIVE"
+    },
+    "121": {
+      "Id": 121,
+      "Code": "SAF",
+      "Name": "Safra Corretora de Valores e Câmbio Ltda.",
+      "Country": "BR",
+      "ParticipantType": "BROKER",
+      "Segments": [ "BOVESPA", "BMF" ],
+      "Status": "ACTIVE"
+    },
+    "122": {
+      "Id": 122,
+      "Code": "RICO",
+      "Name": "Rico Investimentos DTVM Ltda.",
+      "Country": "BR",
+      "ParticipantType": "BROKER",
+      "Segments": [ "BOVESPA" ],
+      "Status": "ACTIVE"
+    },
+    "123": {
+      "Id": 123,
+      "Code": "CLEAR",
+      "Name": "Clear Corretora de Valores S.A.",
+      "Country": "BR",
+      "ParticipantType": "BROKER",
+      "Segments": [ "BOVESPA", "BMF" ],
+      "Status": "ACTIVE"
+    },
+    "124": {
+      "Id": 124,
+      "Code": "NU",
+      "Name": "Nu Invest Corretora de Valores S.A.",
+      "Country": "BR",
+      "ParticipantType": "BROKER",
+      "Segments": [ "BOVESPA" ],
+      "Status": "ACTIVE"
+    },
+    "125": {
+      "Id": 125,
+      "Code": "GEN",
+      "Name": "Genial Investimentos CCTVM S.A.",
+      "Country": "BR",
+      "ParticipantType": "BROKER",
+      "Segments": [ "BOVESPA", "BMF" ],
+      "Status": "ACTIVE"
+    },
+    "126": {
+      "Id": 126,
+      "Code": "MOD",
+      "Name": "Modal DTVM Ltda.",
+      "Country": "BR",
+      "ParticipantType": "BROKER",
+      "Segments": [ "BOVESPA", "BMF" ],
+      "Status": "ACTIVE"
+    },
+    "127": {
+      "Id": 127,
+      "Code": "TORO",
+      "Name": "Toro Corretora de Valores Ltda.",
+      "Country": "BR",
+      "ParticipantType": "BROKER",
+      "Segments": [ "BOVESPA" ],
+      "Status": "ACTIVE"
+    },
+    "128": {
+      "Id": 128,
+      "Code": "GUIDE",
+      "Name": "Guide Investimentos S.A.",
+      "Country": "BR",
+      "ParticipantType": "BROKER",
+      "Segments": [ "BOVESPA", "BMF" ],
+      "Status": "ACTIVE"
+    },
+    "129": {
+      "Id": 129,
+      "Code": "ORAMA",
+      "Name": "Órama DTVM S.A.",
+      "Country": "BR",
+      "ParticipantType": "BROKER",
+      "Segments": [ "BOVESPA" ],
+      "Status": "ACTIVE"
+    },
+    "130": {
+      "Id": 130,
+      "Code": "NECTON",
+      "Name": "Necton Investimentos S.A.",
+      "Country": "BR",
+      "ParticipantType": "BROKER",
+      "Segments": [ "BOVESPA", "BMF" ],
+      "Status": "ACTIVE"
+    },
+    "131": {
+      "Id": 131,
+      "Code": "PLURAL",
+      "Name": "Plural Corretora de Valores S.A.",
+      "Country": "BR",
+      "ParticipantType": "BROKER",
+      "Segments": [ "BOVESPA", "BMF" ],
+      "Status": "ACTIVE"
+    }
+  }
 }

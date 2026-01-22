@@ -1,15 +1,57 @@
+version: '3.8'
+
 services:
-  klingerapi:
+  # KlingerExchange - Core matching engine
+  exchange:
+    image: ${DOCKER_REGISTRY-}klingerexchange
+    container_name: klinger-exchange
+    build:
+      context: .
+      dockerfile: Exchange/KlingerExchange/Dockerfile
+    ports:
+      - "9823:9823"  # FIX Client OMS
+      - "9824:9824"  # FIX Market Simulator
+      - "9900:9900/udp"  # UDP Multicast (market data)
+    volumes:
+      - ./Exchange/KlingerExchange/Config:/app/Config:ro
+      - ./Exchange/KlingerExchange/Matching:/app/Matching:ro
+      - exchange-data:/app/data
+      - exchange-store:/app/store
+    environment:
+      - DOTNET_GCServer=1
+      - DOTNET_GCConcurrent=0
+      - DOTNET_TieredCompilation=0
+      - DOTNET_ReadyToRun=1
+    restart: unless-stopped
+    networks:
+      - klinger-net
+
+  # KlingerApi - REST API for instrument management
+  api:
     image: ${DOCKER_REGISTRY-}klingerapi
     container_name: klinger-api
     build:
       context: .
       dockerfile: Exchange/KlingerApi/Dockerfile
     ports:
-      - "5000:5000"
-      - "5001:5001"
+      - "5000:8080"  # HTTP
+      - "5001:8081"  # HTTPS
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_HTTP_PORTS=5000
-      - ASPNETCORE_HTTPS_PORTS=5001
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORTS=8081
+    depends_on:
+      - exchange
     restart: unless-stopped
+    networks:
+      - klinger-net
+
+volumes:
+  exchange-data:
+    driver: local
+  exchange-store:
+    driver: local
+
+networks:
+  klinger-net:
+    driver: bridge

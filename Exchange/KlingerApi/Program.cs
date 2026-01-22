@@ -23,15 +23,8 @@ public class Program {
             app.MapScalarApiReference();
         }
 
-        app.UseCors();
+        app.UseCors();     
 
-        // Health check endpoint
-        app.MapGet("/health", () => Results.Ok(new { status = "healthy", service = "KlingerApi" }))
-            .WithName("HealthCheck")
-            .WithDescription("Health check endpoint")
-            .ExcludeFromDescription();
-
-        // Endpoint to get instruments list (basic)
         app.MapGet("/instruments", () => {
             var instrumentsConfig = ConfigBase<InstrumentsConfig>.LoadConfig();
             var sessionConfig = ConfigBase<TradingSessionConfig>.LoadConfig();
@@ -57,6 +50,18 @@ public class Program {
         .WithName("GetInstruments")
         .WithDescription("Get all trading instruments with reference prices")
         .WithSummary("Returns the complete list of available instruments with their trading parameters and reference prices");
+
+        app.MapGet("/brokers", () => {
+            var brokers = BrokerConfig.LoadConfig();
+            var sessionConfig = TradingSessionConfig.LoadConfig();
+
+            var instrumentsWithPrices = brokers.Broker.Values.ToList();
+
+            return Results.Json(new { Brokers = brokers.Broker.Values.ToList() });
+        })
+        .WithName("GetBrokers")
+        .WithDescription("Get all brokers")
+        .WithSummary("Returns the complete list of available brokers.");
 
         var port = app.Configuration["ASPNETCORE_HTTP_PORTS"] ?? "5000";
         app.Logger.LogInformation($"KlingerApi starting on http://0.0.0.0:{port}");

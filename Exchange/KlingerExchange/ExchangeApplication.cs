@@ -17,7 +17,6 @@ using QuickFix.Fields;
 using Serilog;
 using Serilog.Events;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 
 namespace KlingerExchange {
     public class ExchangeApplication : IApplication {
@@ -60,7 +59,6 @@ namespace KlingerExchange {
             }
         }
 
-        /// <summary>Initialize validation after stores are loaded</summary>
         public void InitializeValidation() {
             // Initialize order validation - AFTER stores are loaded
             _instrumentCache = new InstrumentValidationCache();
@@ -85,7 +83,6 @@ namespace KlingerExchange {
             warmup.Execute();
         }
 
-        /// <summary>Inject market data dependencies (called from OmsAcceptors)</summary>
         public void InjectMarketDataPublisher(MarketData.Core.RingBuffer buffer, MarketData.Core.SymbolMapper symbolMapper) {
             _matchingEngine.SetMarketDataPublisher(buffer, symbolMapper);
             _log.Information("Market data publisher injected into MatchingEngine");
@@ -131,7 +128,6 @@ namespace KlingerExchange {
         public void OnLogon(SessionID sessionID) {
             _log.Information("{Callback} {SessionId}", nameof(OnLogon), sessionID);
 
-            // Configure thread affinity once on first logon
             if (!_threadAffinityConfigured) {
                 ConfigureThreadAffinity();
                 _threadAffinityConfigured = true;
@@ -141,7 +137,6 @@ namespace KlingerExchange {
         public void OnLogout(SessionID sessionID) {
             _log.Information("{Callback} {SessionId}", nameof(OnLogout), sessionID);
 
-            // Shutdown graceful do EventStore
             _matchingEngine.Dispose();
         }
 
@@ -153,10 +148,6 @@ namespace KlingerExchange {
             // Removed logging for performance - adds 3-5ms due to FIX serialization
         }
 
-        /// <summary>
-        /// Constructs FIX ExecutionReport with Rejected status.
-        /// Used when an order fails the pre-validation rules.
-        /// </summary>
         private Message BuildBusinessReject(Message originalMsg, SessionID sessionID, ValidationResult validation) {
             var reject = new QuickFix.FIX41.ExecutionReport(
                 new OrderID("0"),
@@ -267,7 +258,6 @@ namespace KlingerExchange {
                 swReport.Stop();
                 reportNs = TicksToNs(swReport.ElapsedTicks);
 
-                // ASYNC dispatch
                 _reportDispatcher.EnqueueReport(cancelReport, sessionID, returnToPool: true);
             } else {
                 var swReport = Stopwatch.StartNew();
@@ -275,7 +265,6 @@ namespace KlingerExchange {
                 swReport.Stop();
                 reportNs = TicksToNs(swReport.ElapsedTicks);
 
-                // ASYNC dispatch
                 _reportDispatcher.EnqueueReport(rejectReport, sessionID, returnToPool: true);
             }
 
@@ -287,20 +276,20 @@ namespace KlingerExchange {
             try {
                 // This runs on background thread - no impact on hot path
                 _latencyMonitor.RecordLatency(evt.Metrics.TotalTimeNs);
+                                
+                if (evt.FillCount > 0 && _log.IsEnabled(LogEventLevel.Debug)) {
 
-                // Log.Debug removed for performance (saves ~2ms per order)
-                if (evt.FillCount > 0 && _log.IsEnabled(LogEventLevel.Debug))
                     _log.Debug("{MsgType}: {Symbol} {Side} {Qty}@{Px} → {Fills} fills [{ClOrdId}]",
                         evt.MsgType, evt.Symbol, evt.Side, evt.Quantity, evt.Price, evt.FillCount, evt.ClOrdId);
-                else if (_log.IsEnabled(LogEventLevel.Debug))
+                } else if (_log.IsEnabled(LogEventLevel.Debug)) {
+
                     _log.Debug("{MsgType}: {Symbol} {Side} {Qty}@{Px} → book [{ClOrdId}]",
                         evt.MsgType, evt.Symbol, evt.Side, evt.Quantity, evt.Price, evt.ClOrdId);
-
-                // Log only truly slow orders (>1ms becomes >100µs threshold)
+                }
+                                
                 if (evt.Metrics.TotalTimeNs > 100_000)
                     _log.Warning("SLOW: {Metrics}", evt.Metrics);
 
-                // Log aggregate stats + EventStore health
                 var count = Interlocked.Increment(ref _messageCount);
                 var now = Environment.TickCount64;
                 if (now - _lastStatsTick >= 1000 || count % 100 == 0) {
@@ -311,18 +300,18 @@ namespace KlingerExchange {
                     if (esMetrics.HasValue) {
                         var es = esMetrics.Value;
                         var bufferPct = es.BufferUtilization * 100;
+
                         _log.Information("STATS: {Stats} | EventStore: {Written}W/{Flushed}F/{Dropped}D (Buffer: {BufferPct:F1}%)",
                             stats, es.EventsWritten, es.EventsFlushed, es.EventsDropped, bufferPct);
 
-                        if (!es.IsHealthy) {
+                        if (!es.IsHealthy && Log.IsEnabled(LogEventLevel.Warning)) {
                             _log.Warning("EventStore unhealthy: Dropped={Dropped}, Buffer={BufferPct:F1}%",
                                 es.EventsDropped, bufferPct);
                         }
                     } else {
                         _log.Information("STATS: {Stats}", stats);
                     }
-
-                    // Log benchmark info with CPU migration tracking
+                                        
                     if (stats.SampledMatches > 0) {
                         _log.Information("{BenchInfo}", stats.GetBenchInfo());
                     }
