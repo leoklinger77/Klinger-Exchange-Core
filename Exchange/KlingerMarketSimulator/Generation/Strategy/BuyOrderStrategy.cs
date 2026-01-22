@@ -1,5 +1,5 @@
 using KlingerSimulator.Generation.Models;
-using KlingerSimulator.Generation.Random;
+using KlingerSimulator.Generation.Randoms;
 
 namespace KlingerSimulator.Generation.Strategy;
 

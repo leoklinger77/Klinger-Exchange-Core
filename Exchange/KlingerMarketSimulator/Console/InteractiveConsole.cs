@@ -11,7 +11,7 @@ public sealed class InteractiveConsole : IDisposable {
     // Control state
     private volatile bool _isRunning;
     private volatile bool _isPaused;
-    private volatile int _intensity = 50;
+    private volatile int _intensity = 10;
     private volatile int _ordersPerSecond;
     private long _totalOrdersSent;
     private long _totalPairsGenerated;

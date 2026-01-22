@@ -1,5 +1,5 @@
 using KlingerSimulator.Generation.Models;
-using KlingerSimulator.Generation.Random;
+using KlingerSimulator.Generation.Randoms;
 
 namespace KlingerSimulator.Generation.Strategy;
 
@@ -35,20 +35,20 @@ public sealed class CrossedPairStrategy : IGenerationStrategy<OrderRequest[]>
 
         if (isBullish)
         {
-            // Bullish: price drifts UP - buy aggressive, sell passive
-            var buyPremium = 0.005m + (decimal)random.NextDouble() * 0.015m;  // +0.5% to +2%
-            var sellDiscount = (decimal)random.NextDouble() * 0.005m;          // 0% to -0.5%
+            // Bullish: price drifts UP - buy aggressive (above market), sell at/near market
+            var buyPremium = 0.0001m + (decimal)random.NextDouble() * 0.0009m;  // +0.01% to +0.1%
+            var sellOffset = -(decimal)random.NextDouble() * 0.0002m;           // 0% to -0.02%
 
             buyPrice = RoundToTick(lastPrice * (1m + buyPremium), spec.TickSize);
-            sellPrice = RoundToTick(lastPrice * (1m - sellDiscount), spec.TickSize);
+            sellPrice = RoundToTick(lastPrice * (1m + sellOffset), spec.TickSize);
         }
         else
         {
-            // Bearish: price drifts DOWN - sell aggressive, buy passive
-            var sellDiscount = 0.005m + (decimal)random.NextDouble() * 0.015m; // -0.5% to -2%
-            var buyPremium = (decimal)random.NextDouble() * 0.005m;             // 0% to +0.5%
+            // Bearish: price drifts DOWN - sell aggressive (below market), buy at/near market
+            var sellDiscount = 0.0001m + (decimal)random.NextDouble() * 0.0009m; // -0.01% to -0.1%
+            var buyOffset = -(decimal)random.NextDouble() * 0.0002m;             // 0% to -0.02%
 
-            buyPrice = RoundToTick(lastPrice * (1m + buyPremium), spec.TickSize);
+            buyPrice = RoundToTick(lastPrice * (1m + buyOffset), spec.TickSize);
             sellPrice = RoundToTick(lastPrice * (1m - sellDiscount), spec.TickSize);
         }
 
@@ -89,7 +89,21 @@ public sealed class CrossedPairStrategy : IGenerationStrategy<OrderRequest[]>
     private static decimal GetRandomQuantity(IRandomProvider random, InstrumentSpec spec)
     {
         var lotSize = spec.LotSize > 0 ? spec.LotSize : 100;
-        var lots = random.NextInt(1, 21); // 1 to 20 lots
+        
+        // More consistent quantity distribution
+        // 70% of orders: 1-5 lots (smaller orders)
+        // 20% of orders: 5-10 lots (medium orders)
+        // 10% of orders: 10-20 lots (larger orders)
+        var roll = random.NextInt(0, 100);
+        int lots;
+        
+        if (roll < 70)
+            lots = random.NextInt(1, 6);      // 1-5 lots
+        else if (roll < 90)
+            lots = random.NextInt(5, 11);     // 5-10 lots
+        else
+            lots = random.NextInt(10, 21);    // 10-20 lots
+            
         return lotSize * lots;
     }
 

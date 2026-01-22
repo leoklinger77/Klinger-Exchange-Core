@@ -1,7 +1,7 @@
 using KlingerSimulator.Generation;
 using KlingerSimulator.Generation.Models;
 using KlingerSimulator.Generation.Performance;
-using KlingerSimulator.Generation.Random;
+using KlingerSimulator.Generation.Randoms;
 using KlingerSimulator.Generation.Strategy;
 
 namespace KlingerSimulator.Examples;
