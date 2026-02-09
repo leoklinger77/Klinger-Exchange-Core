@@ -41,7 +41,7 @@ public sealed class ExecutionReportDispatcher : IDisposable {
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void EnqueueReport(ExecutionReport report, SessionID sessionId, bool returnToPool) {
-        _reportStream.OnNext(new PendingReport(report, null, sessionId, returnToPool));
+        _reportStream.OnNext(new PendingReport(report, null, null, null, sessionId, returnToPool));
     }
 
     /// <summary>
@@ -49,7 +49,23 @@ public sealed class ExecutionReportDispatcher : IDisposable {
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void EnqueueReport(QfMessage message, SessionID sessionId, bool returnToPool) {
-        _reportStream.OnNext(new PendingReport(null, message, sessionId, returnToPool));
+        _reportStream.OnNext(new PendingReport(null, message, null, null, sessionId, returnToPool));
+    }
+
+    /// <summary>
+    /// Enqueue OrderCancelReject for async dispatch. Returns immediately (~50ns).
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void EnqueueReport(QuickFix.FIX41.OrderCancelReject message, SessionID sessionId, bool returnToPool) {
+        _reportStream.OnNext(new PendingReport(null, null, message, null, sessionId, returnToPool));
+    }
+
+    /// <summary>
+    /// Enqueue Reject for async dispatch. Returns immediately (~50ns).
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void EnqueueReport(QuickFix.FIX41.Reject message, SessionID sessionId, bool returnToPool) {
+        _reportStream.OnNext(new PendingReport(null, null, null, message, sessionId, returnToPool));
     }
 
     /// <summary>
@@ -61,6 +77,16 @@ public sealed class ExecutionReportDispatcher : IDisposable {
                 Session.SendToTarget(pending.ExecutionReport, pending.SessionId);
                 if (pending.ReturnToPool) {
                     ExecutionReportBuilder.ReturnToPool(pending.ExecutionReport);
+                }
+            } else if (pending.OrderCancelReject != null) {
+                Session.SendToTarget(pending.OrderCancelReject, pending.SessionId);
+                if (pending.ReturnToPool) {
+                    MessageBuilders.ReturnCancelRejectToPool(pending.OrderCancelReject);
+                }
+            } else if (pending.Reject != null) {
+                Session.SendToTarget(pending.Reject, pending.SessionId);
+                if (pending.ReturnToPool) {
+                    MessageBuilders.ReturnRejectToPool(pending.Reject);
                 }
             } else if (pending.GenericMessage != null) {
                 Session.SendToTarget(pending.GenericMessage, pending.SessionId);
@@ -85,6 +111,8 @@ public sealed class ExecutionReportDispatcher : IDisposable {
     private readonly record struct PendingReport(
         ExecutionReport? ExecutionReport,
         QfMessage? GenericMessage,
+        QuickFix.FIX41.OrderCancelReject? OrderCancelReject,
+        QuickFix.FIX41.Reject? Reject,
         SessionID SessionId,
         bool ReturnToPool);
 }

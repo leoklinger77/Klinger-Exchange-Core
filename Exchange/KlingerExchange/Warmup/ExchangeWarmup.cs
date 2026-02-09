@@ -140,6 +140,18 @@ public sealed class ExchangeWarmup {
 
             var rejectReport = ExecutionReportBuilder.BuildRejectReportPooled("WARMUP", symbol, "Test");
             ExecutionReportBuilder.ReturnToPool(rejectReport);
+
+            var replaceReport = ExecutionReportBuilder.BuildReplaceReportPooled(dummyOrder, "WARMUP", "ORIG");
+            ExecutionReportBuilder.ReturnToPool(replaceReport);
+
+            var cancelReject = MessageBuilders.BuildCancelRejectPooled("0", "WARMUP", "ORIG", '8', "Test");
+            MessageBuilders.ReturnCancelRejectToPool(cancelReject);
+
+            var replaceReject = MessageBuilders.BuildReplaceRejectPooled("0", "WARMUP", "ORIG", '8', "Test");
+            MessageBuilders.ReturnCancelRejectToPool(replaceReject);
+
+            var reject = MessageBuilders.BuildRejectPooled(0, "Test");
+            MessageBuilders.ReturnRejectToPool(reject);
         }
     }
 

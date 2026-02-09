@@ -1,6 +1,7 @@
 ﻿using KlingerExchange.Config;
 using KlingerExchange.Matching.Domain;
 using KlingerExchange.Matching.Domain.Enums;
+using DomainSide = KlingerExchange.Matching.Domain.Enums.Side;
 using KlingerExchange.Matching.Domain.Events;
 using KlingerExchange.Matching.Domain.Struct;
 using KlingerExchange.Matching.Engine;
@@ -113,7 +114,21 @@ namespace KlingerExchange {
                         HandleOrderCancelRequest(message, sessionID);
                         break;
 
+                    case "G": // ORDER_CANCEL_REPLACE_REQUEST
+                        HandleOrderCancelReplaceRequest(message, sessionID);
+                        break;
+
+                    case "H": // ORDER_STATUS_REQUEST
+                        HandleOrderStatusRequest(message, sessionID);
+                        break;
+
                     default:
+                        var refSeqNum = message.Header.IsSetField(Tags.MsgSeqNum) 
+                            ? message.Header.GetInt(Tags.MsgSeqNum) : 0;
+                        var rejectMsg = MessageBuilders.BuildRejectPooled(
+                            refSeqNum, 
+                            $"MsgType {msgType} not supported");
+                        _reportDispatcher.EnqueueReport(rejectMsg, sessionID, returnToPool: true);
                         break;
                 }
             } finally {
@@ -270,6 +285,93 @@ namespace KlingerExchange {
 
             _metricsCollector.CaptureOrderData(clOrdId, symbol, side, 0, 0, orderId);
             _metricsCollector.RecordTiming(parseNs, matchNs, reportNs, sendNs, 0);
+        }
+
+        private void HandleOrderCancelReplaceRequest(Message message, SessionID sessionID) {
+            var swParse = Stopwatch.StartNew();
+            var replaceRequest = (QuickFix.FIX41.OrderCancelReplaceRequest)message;
+            var (clOrdId, origClOrdId, orderId, symbol, newPrice, newQuantity) = FastOrderParser.ParseOrderCancelReplaceRequestFast(replaceRequest);
+            swParse.Stop();
+            var parseNs = TicksToNs(swParse.ElapsedTicks);
+
+            // Lookup original order via ClOrdId if OrderId not provided
+            if (orderId == 0 && _clOrdIdToOrderId.TryGetValue(origClOrdId, out var lookupId)) {
+                orderId = lookupId;
+            }
+
+            var swMatch = Stopwatch.StartNew();
+            var (success, newOrder) = _matchingEngine.ProcessReplace(orderId, symbol, clOrdId, newPrice, newQuantity);
+            swMatch.Stop();
+            var matchNs = TicksToNs(swMatch.ElapsedTicks);
+
+            long reportNs = 0;
+
+            if (success) {
+                _clOrdIdToOrderId[clOrdId] = orderId;
+
+                var swReport = Stopwatch.StartNew();
+                var replaceReport = ExecutionReportBuilder.BuildReplaceReportPooled(newOrder, clOrdId, origClOrdId);
+                swReport.Stop();
+                reportNs = TicksToNs(swReport.ElapsedTicks);
+
+                _reportDispatcher.EnqueueReport(replaceReport, sessionID, returnToPool: true);
+            } else {
+                var swReport = Stopwatch.StartNew();
+                var rejectMsg = MessageBuilders.BuildReplaceRejectPooled(
+                    orderId.ToString(), 
+                    clOrdId, 
+                    origClOrdId, 
+                    QuickFix.Fields.OrdStatus.REJECTED, 
+                    "Order not found or already filled");
+                swReport.Stop();
+                reportNs = TicksToNs(swReport.ElapsedTicks);
+
+                _reportDispatcher.EnqueueReport(rejectMsg, sessionID, returnToPool: false);
+            }
+
+            _metricsCollector.CaptureOrderData(clOrdId, symbol, DomainSide.Buy, newQuantity ?? 0, newPrice ?? 0, orderId);
+            _metricsCollector.RecordTiming(parseNs, matchNs, reportNs, 0, 0);
+        }
+
+        private void HandleOrderStatusRequest(Message message, SessionID sessionID) {
+            var swParse = Stopwatch.StartNew();
+            var statusRequest = (QuickFix.FIX41.OrderStatusRequest)message;
+            var (clOrdId, orderId, symbol) = FastOrderParser.ParseOrderStatusRequestFast(statusRequest);
+            swParse.Stop();
+            var parseNs = TicksToNs(swParse.ElapsedTicks);
+
+            // Lookup by ClOrdId if OrderId not provided
+            if (orderId == 0 && !string.IsNullOrEmpty(clOrdId) && _clOrdIdToOrderId.TryGetValue(clOrdId, out var lookupId)) {
+                orderId = lookupId;
+            }
+
+            var swMatch = Stopwatch.StartNew();
+            var (found, order) = _matchingEngine.GetOrderInfo(orderId);
+            swMatch.Stop();
+            var matchNs = TicksToNs(swMatch.ElapsedTicks);
+
+            long reportNs = 0;
+
+            if (found) {
+                var swReport = Stopwatch.StartNew();
+                var statusReport = ExecutionReportBuilder.BuildNewOrderReportPooled(order, clOrdId);
+                swReport.Stop();
+                reportNs = TicksToNs(swReport.ElapsedTicks);
+
+                _reportDispatcher.EnqueueReport(statusReport, sessionID, returnToPool: true);
+            } else {
+                var swReport = Stopwatch.StartNew();
+                var rejectMsg = MessageBuilders.BuildRejectPooled(
+                    0, 
+                    "Order not found");
+                swReport.Stop();
+                reportNs = TicksToNs(swReport.ElapsedTicks);
+
+                _reportDispatcher.EnqueueReport(rejectMsg, sessionID, returnToPool: true);
+            }
+
+            _metricsCollector.CaptureOrderData(clOrdId, symbol, DomainSide.Buy, 0, 0, orderId);
+            _metricsCollector.RecordTiming(parseNs, matchNs, reportNs, 0, 0);
         }
 
         private void OnMetricsEvent(OrderMetricsEvent evt) {

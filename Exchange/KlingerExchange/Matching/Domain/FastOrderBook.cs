@@ -62,6 +62,39 @@ public sealed class FastOrderBook {
         return (removed, location.Side);
     }
 
+    public bool TryGetOrder(long orderId, out long priceFixed, out Side side) {
+        if (_orderIndex.TryGetValue(orderId, out var location)) {
+            priceFixed = location.PriceFixed;
+            side = location.Side;
+            return true;
+        }
+        priceFixed = 0;
+        side = Side.Buy;
+        return false;
+    }
+
+    public (bool success, Order? oldOrder) ReplaceOrder(long orderId, decimal? newPrice, decimal? newQuantity) {
+        if (!_orderIndex.TryGetValue(orderId, out var location))
+            return (false, null);
+
+        var book = location.Side == Side.Buy ? _bids : _asks;
+        if (!book.TryGetValue(location.PriceFixed, out var level))
+            return (false, null);
+
+        // Remove old order from current price level
+        var removed = level.RemoveOrder(orderId);
+        if (!removed)
+            return (false, null);
+
+        if (level.IsEmpty)
+            book.Remove(location.PriceFixed);
+
+        // Remove from index (will be re-added with new price)
+        _orderIndex.TryRemove(orderId, out _);
+
+        return (true, null);
+    }
+
     /// <summary>
     /// Match incoming order against the book. Single pass, no repeated lookups.
     /// </summary>

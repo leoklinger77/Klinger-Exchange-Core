@@ -96,6 +96,28 @@ public static class ExecutionReportBuilder {
         return report;
     }
 
+    public static ExecutionReport BuildReplaceReportPooled(Order order, string clOrdId, string origClOrdId) {
+        var report = _pool.Rent();
+
+        report.OrderID = new QuickFix.Fields.OrderID(order.OrderId.ToString());
+        report.ExecID = new QuickFix.Fields.ExecID(Guid.NewGuid().ToString());
+        report.ExecTransType = new QuickFix.Fields.ExecTransType(QuickFix.Fields.ExecTransType.NEW);
+        report.ExecType = new QuickFix.Fields.ExecType(QuickFix.Fields.ExecType.REPLACE);
+        report.OrdStatus = new QuickFix.Fields.OrdStatus(MapOrderStatus(order.Status));
+        report.Symbol = new QuickFix.Fields.Symbol(order.Symbol);
+        report.Side = new FixSide(MapSide(order.Side));
+        report.OrderQty = new QuickFix.Fields.OrderQty(order.Quantity);
+        report.ClOrdID = new QuickFix.Fields.ClOrdID(clOrdId);
+        report.OrigClOrdID = new QuickFix.Fields.OrigClOrdID(origClOrdId);
+        report.LeavesQty = new QuickFix.Fields.LeavesQty(order.LeavesQty);
+        report.CumQty = new QuickFix.Fields.CumQty(order.FilledQty);
+        report.AvgPx = new QuickFix.Fields.AvgPx(order.Price);
+        report.LastShares = new QuickFix.Fields.LastShares(0);
+        report.LastPx = new QuickFix.Fields.LastPx(0);
+
+        return report;
+    }
+
     public static void ReturnToPool(ExecutionReport report) {
         _pool.Return(report);
     }

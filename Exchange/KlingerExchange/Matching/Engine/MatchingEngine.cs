@@ -16,6 +16,7 @@ public sealed class MatchingEngine {
 
     private readonly IOrderBookRepository _repository;
     private long _nextOrderId;
+    private readonly ConcurrentDictionary<long, (Order Order, string Symbol)> _orderCache;
     private RingBuffer? _marketDataBuffer;
     private SymbolMapper? _symbolMapper;
     private uint _sequenceNumber = 0;
@@ -46,6 +47,7 @@ public sealed class MatchingEngine {
     public MatchingEngine(IOrderBookRepository repository) {
         _repository = repository;
         _nextOrderId = 1;
+        _orderCache = new ConcurrentDictionary<long, (Order, string)>();
         _eventStoreEnabled = false;
         _eventQueue = new ConcurrentQueue<PendingEvent>();
         _eventSignal = new ManualResetEventSlim(false);
@@ -271,6 +273,7 @@ public sealed class MatchingEngine {
         var nowTicks = DateTime.UtcNow.Ticks;
         var orderId = Interlocked.Increment(ref _nextOrderId);
         var order = new Order(orderId, clOrdId, symbol, side, price, quantity, nowTicks);
+        _orderCache[orderId] = (order, symbol);
         var book = _repository.GetOrCreateBook(symbol);
         var fills = new List<Fill>(4);  // Pre-allocate for common case
 
@@ -361,10 +364,12 @@ public sealed class MatchingEngine {
 
         // Cancellation event persists (asynchronous)
         if (success) {
+            _orderCache.TryRemove(orderId, out _);
+            
             EnqueueEvent(new PendingEvent {
                 EventType = EventType.OrderCancelled,
                 OrderId = orderId,
-                ClOrdId = string.Empty, //TODO: We don't have a ClOrdId here; it would be necessary to maintain an index.
+                ClOrdId = string.Empty,
                 Symbol = symbol,
                 TimestampTicks = DateTime.UtcNow.Ticks
             });
@@ -372,6 +377,57 @@ public sealed class MatchingEngine {
         }
 
         return (success, side);
+    }
+
+    public (bool success, Order newOrder) ProcessReplace(long orderId, string symbol, string newClOrdId, decimal? newPrice, decimal? newQuantity) {
+        if (!_repository.TryGetBook(symbol, out var book) || book == null)
+            return (false, default);
+
+        // Get old order from cache
+        if (!_orderCache.TryGetValue(orderId, out var cached))
+            return (false, default);
+
+        var oldOrder = cached.Order;
+
+        // Remove from book (preserves time priority if price unchanged)
+        var (removed, _) = book.ReplaceOrder(orderId, newPrice, newQuantity);
+        if (!removed)
+            return (false, default);
+
+        // Create new order with updated values
+        var finalPrice = newPrice ?? oldOrder.Price;
+        var finalQty = newQuantity ?? oldOrder.Quantity;
+        var nowTicks = DateTime.UtcNow.Ticks;
+
+        var newOrder = new Order(orderId, newClOrdId, symbol, oldOrder.Side, finalPrice, finalQty, nowTicks) {
+            FilledQty = oldOrder.FilledQty,
+            Status = oldOrder.Status
+        };
+
+        // Re-add to book with new price/quantity
+        book.AddOrder(newOrder);
+        _orderCache[orderId] = (newOrder, symbol);
+
+        EnqueueEvent(new PendingEvent {
+            EventType = EventType.OrderAccepted,
+            OrderId = orderId,
+            ClOrdId = newClOrdId,
+            Symbol = symbol,
+            Side = (byte)(newOrder.Side == Side.Buy ? 1 : 2),
+            Price = finalPrice,
+            Quantity = finalQty,
+            TimestampTicks = nowTicks
+        });
+        SignalEventDispatcher();
+
+        return (true, newOrder);
+    }
+
+    public (bool found, Order order) GetOrderInfo(long orderId) {
+        if (_orderCache.TryGetValue(orderId, out var cached)) {
+            return (true, cached.Order);
+        }
+        return (false, default);
     }
 
     private void PublishTrade(string symbol, Fill fill) {

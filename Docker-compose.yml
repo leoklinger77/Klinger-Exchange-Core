@@ -9,8 +9,8 @@ services:
       context: .
       dockerfile: Exchange/KlingerExchange/Dockerfile
     ports:
-      - "9823:9823"  # FIX Client OMS
-      - "9824:9824"  # FIX Market Simulator
+      - "9823:9823"      # FIX Client OMS
+      - "9824:9824"      # FIX Market Simulator
       - "9900:9900/udp"  # UDP Multicast (market data)
     volumes:
       - ./Exchange/KlingerExchange/Config:/app/Config:ro
