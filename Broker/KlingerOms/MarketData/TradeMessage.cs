@@ -21,5 +21,8 @@ public unsafe struct TradeMessage
     public const int MessageSize = 64;
     public const byte MSG_TYPE_TRADE = 1;
     
-    public decimal Price => (decimal)PriceFixed / 100000m;
+    /// <summary>Wire protocol multiplier (must match Exchange PriceConstants.WireMultiplier)</summary>
+    private const decimal WireMultiplier = 100_000m;
+
+    public decimal Price => (decimal)PriceFixed / WireMultiplier;
 }

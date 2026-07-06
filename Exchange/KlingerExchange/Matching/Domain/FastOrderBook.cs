@@ -10,8 +10,8 @@ namespace KlingerExchange.Matching.Domain;
 /// Target: &lt;50µs for match operations.
 /// </summary>
 public sealed class FastOrderBook {
-    // Price multiplier: 100_000_000 gives 8 decimal places precision
-    private const long PRICE_MULTIPLIER = 100_000_000L;
+    // Uses centralized constant for fixed-point price conversion
+    private static readonly long PRICE_MULTIPLIER = PriceConstants.OrderBookMultiplier;
 
     private readonly SortedList<long, FastPriceLevel> _bids;
     private readonly SortedList<long, FastPriceLevel> _asks;
@@ -157,4 +157,26 @@ public sealed class FastOrderBook {
     }
 
     public IEnumerable<long> GetAllOrderIds() => _orderIndex.Keys;
+
+    /// <summary>
+    /// Applies a fill to a specific order in the book (used during EventStore recovery).
+    /// Reduces the order's LeavesQty and removes it if fully filled.
+    /// </summary>
+    public bool ApplyFillToOrder(long orderId, decimal fillQty) {
+        if (!_orderIndex.TryGetValue(orderId, out var location))
+            return false;
+
+        var book = location.Side == Side.Buy ? _bids : _asks;
+        if (!book.TryGetValue(location.PriceFixed, out var level))
+            return false;
+
+        var found = level.ApplyFillToOrder(orderId, fillQty, out var removed);
+        if (found && removed) {
+            _orderIndex.TryRemove(orderId, out _);
+            if (level.IsEmpty)
+                book.Remove(location.PriceFixed);
+        }
+
+        return found;
+    }
 }

@@ -162,7 +162,7 @@ public sealed class EventStoreReader : IDisposable {
         }
 
         var percentComplete = (bytesProcessed * 100.0) / fileSize;
-        _log.Information("✅ Total events read: {Count:N0} ({PercentRead:F1}% of file, {BytesMB:F2} MB)",
+        _log.Information("Total events read: {Count:N0} ({PercentRead:F1}% of file, {BytesMB:F2} MB)",
             eventsRead, percentComplete, bytesProcessed / (1024.0 * 1024.0));
     }
 

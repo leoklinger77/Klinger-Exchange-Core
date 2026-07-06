@@ -9,8 +9,10 @@ namespace KlingerExchange.EventStore;
 public sealed class OrderBookRebuilder {
     private readonly ILogger _log = Log.ForContext<OrderBookRebuilder>();
     private readonly IOrderBookRepository _repository;
+    private readonly Dictionary<long, string> _orderSymbolMap = new();
     private long _eventsProcessed;
     private long _ordersRebuilt;
+    private long _tradesApplied;
 
     public OrderBookRebuilder(IOrderBookRepository repository) {
         _repository = repository;
@@ -59,7 +61,7 @@ public sealed class OrderBookRebuilder {
                 break;
 
             case EventType.Trade:
-                // A trade is derivative; it does not directly alter the state of the order book.
+                ApplyTrade((TradeEvent)eventData);
                 break;
 
             default:
@@ -82,25 +84,44 @@ public sealed class OrderBookRebuilder {
         );
 
         book.AddOrder(order);
+        _orderSymbolMap[evt.OrderId] = evt.Symbol;
         _ordersRebuilt++;
     }
 
+    private void ApplyTrade(TradeEvent evt) {
+        var book = _repository.GetOrCreateBook(evt.Symbol);
+
+        // Apply fill to both participating orders in the book
+        book.ApplyFillToOrder(evt.BuyOrderId, evt.Quantity);
+        book.ApplyFillToOrder(evt.SellOrderId, evt.Quantity);
+
+        _tradesApplied++;
+    }
+
     private void ApplyOrderFilled(OrderFilledEvent evt) {
-        // The order has been completely filled; it must have been removed from the book.
-        // Informational event only.
+        // Safety net: remove fully filled order from book if still present
+        // Trade events should have already reduced it, but ensure consistency
+        if (_orderSymbolMap.TryGetValue(evt.OrderId, out var symbol)) {
+            if (_repository.TryGetBook(symbol, out var book) && book != null) {
+                book.RemoveOrder(evt.OrderId);
+            }
+            _orderSymbolMap.Remove(evt.OrderId);
+        }
     }
 
     private void ApplyOrderPartiallyFilled(OrderPartiallyFilledEvent evt) {
-        // Order partially filled, UpdateOrderFill has already been applied via Trade events
-        // Informational event only
+        // Trade events handle the actual fill reduction in the book.
+        // This event is informational for the aggressor order.
     }
 
     private void ApplyOrderCancelled(OrderCancelledEvent evt) {
         if (_repository.TryGetBook(evt.Symbol, out var book) && book != null) {
             book.RemoveOrder(evt.OrderId);
         }
+        _orderSymbolMap.Remove(evt.OrderId);
     }
 
     public long EventsProcessed => _eventsProcessed;
     public long OrdersRebuilt => _ordersRebuilt;
+    public long TradesApplied => _tradesApplied;
 }

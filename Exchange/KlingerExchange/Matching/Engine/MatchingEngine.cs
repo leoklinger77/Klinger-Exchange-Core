@@ -23,6 +23,10 @@ public sealed class MatchingEngine {
     private long _droppedMessages = 0;
     private LatencyMonitor? _latencyMonitor;
 
+    // Reusable buffers (safe: ProcessNewOrder is called sequentially from FIX thread)
+    private readonly List<Fill> _fillsBuffer = new(4);
+    private readonly List<MatchResult> _matchesBuffer = new(4);
+
     // EventStore para persistência durável
     private EventStoreWriter? _eventStore;
     private bool _eventStoreEnabled;
@@ -207,7 +211,7 @@ public sealed class MatchingEngine {
 
                 using var reader = new EventStoreReader(eventFile);
                 
-                // ✅ STREAMING: Process events without loading all into memory
+                // STREAMING: Process events without loading all into memory
                 long fileEvents = 0;
                 var batch = new List<(EventHeader, object)>(10000); // Process in 10K batches
                 
@@ -224,7 +228,7 @@ public sealed class MatchingEngine {
                         // Log progress every 5 seconds
                         if (progressTimer.ElapsedMilliseconds > 5000) {
                             var rate = totalEvents * 1000.0 / sw.ElapsedMilliseconds;
-                            Log.Information("⏳ Progress: {TotalEvents:N0} events processed ({Rate:F0} events/sec)",
+                            Log.Information("Recovery progress: {TotalEvents:N0} events processed ({Rate:F0} events/sec)",
                                 totalEvents, rate);
                             progressTimer.Restart();
                         }
@@ -249,10 +253,10 @@ public sealed class MatchingEngine {
                 Log.Information("Next OrderId adjusted to: {OrderId}", _nextOrderId);
             }
 
-            Log.Information("✅ RECOVERY COMPLETE: {TotalEvents:N0} events reprocessed in {Elapsed}ms ({Rate:F0} events/sec)",
+            Log.Information("RECOVERY COMPLETE: {TotalEvents:N0} events reprocessed in {Elapsed}ms ({Rate:F0} events/sec)",
                 totalEvents, sw.ElapsedMilliseconds, totalEvents * 1000.0 / Math.Max(1, sw.ElapsedMilliseconds));
         } catch (Exception ex) {
-            Log.Error(ex, "❌ Error during recovery. Starting with a clean state.");
+            Log.Error(ex, "Error during recovery. Starting with a clean state.");
         }
     }
 
@@ -275,7 +279,7 @@ public sealed class MatchingEngine {
         var order = new Order(orderId, clOrdId, symbol, side, price, quantity, nowTicks);
         _orderCache[orderId] = (order, symbol);
         var book = _repository.GetOrCreateBook(symbol);
-        var fills = new List<Fill>(4);  // Pre-allocate for common case
+        _fillsBuffer.Clear();
 
         // The accepted order event persists (non-blocking)
         EnqueueEvent(new PendingEvent {
@@ -291,10 +295,10 @@ public sealed class MatchingEngine {
 
         // Try to match against opposite side (single lock, no list scans)
         var remainingQty = quantity;
-        var matches = new List<MatchResult>(4); // Pre-allocate
-        book.MatchOrder(side, price, ref remainingQty, matches);
+        _matchesBuffer.Clear();
+        book.MatchOrder(side, price, ref remainingQty, _matchesBuffer);
 
-        foreach (var match in matches) {
+        foreach (var match in _matchesBuffer) {
             var fill = new Fill {
                 BuyOrderId = side == Side.Buy ? orderId : match.CounterOrderId,
                 SellOrderId = side == Side.Buy ? match.CounterOrderId : orderId,
@@ -302,7 +306,7 @@ public sealed class MatchingEngine {
                 Quantity = match.Quantity,
                 TimestampTicks = nowTicks
             };
-            fills.Add(fill);
+            _fillsBuffer.Add(fill);
 
             // Trade event persists (non-blocking)
             EnqueueEvent(new PendingEvent {
@@ -353,7 +357,7 @@ public sealed class MatchingEngine {
         // Signal event dispatcher once at end of order processing
         SignalEventDispatcher();
 
-        return (order, fills);
+        return (order, _fillsBuffer);
     }
 
     public (bool success, Side side) ProcessCancel(string symbol, long orderId) {

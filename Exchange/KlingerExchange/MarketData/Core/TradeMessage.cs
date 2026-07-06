@@ -23,7 +23,7 @@ public unsafe struct TradeMessage {
     public const byte MSG_TYPE_QUOTE = 2;
     public const byte MSG_TYPE_BOOK_UPDATE = 3;
 
-    public static long PriceToFixed(decimal price) => (long)(price * 100000m);
+    public static long PriceToFixed(decimal price) => (long)(price * PriceConstants.WireMultiplierDecimal);
 
-    public static decimal FixedToPrice(long priceFixed) => (decimal)priceFixed / 100000m;
+    public static decimal FixedToPrice(long priceFixed) => (decimal)priceFixed / PriceConstants.WireMultiplierDecimal;
 }

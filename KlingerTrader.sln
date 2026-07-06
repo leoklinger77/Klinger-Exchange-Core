@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KlingerShared", "Shared\Kli
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KlingerApi", "Exchange\KlingerApi\KlingerApi.csproj", "{99D4AEAD-0503-421E-BF32-AF6CA5FAD929}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KlingerExchange.Tests", "Exchange\KlingerExchange.Tests\KlingerExchange.Tests.csproj", "{B1E2C3D4-5F6A-7B8C-9D0E-1F2A3B4C5D6E}"
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{42965086-1980-44CE-A463-C7C332320DD3}"
 	ProjectSection(SolutionItems) = preProject
 		Docker-compose.yml = Docker-compose.yml
@@ -56,6 +58,10 @@ Global
 		{99D4AEAD-0503-421E-BF32-AF6CA5FAD929}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{99D4AEAD-0503-421E-BF32-AF6CA5FAD929}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{99D4AEAD-0503-421E-BF32-AF6CA5FAD929}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B1E2C3D4-5F6A-7B8C-9D0E-1F2A3B4C5D6E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B1E2C3D4-5F6A-7B8C-9D0E-1F2A3B4C5D6E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B1E2C3D4-5F6A-7B8C-9D0E-1F2A3B4C5D6E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B1E2C3D4-5F6A-7B8C-9D0E-1F2A3B4C5D6E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -67,6 +73,7 @@ Global
 		{5985FCE4-DC94-4893-9A55-EC0A6509DEA2} = {A86CC059-C725-4EE1-87B8-1CA5FFA157F1}
 		{CA285291-D33E-4B7E-8A89-B9E8E5971A27} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{99D4AEAD-0503-421E-BF32-AF6CA5FAD929} = {65D26DD3-23F9-4D22-B9DE-AA3678B9E19F}
+		{B1E2C3D4-5F6A-7B8C-9D0E-1F2A3B4C5D6E} = {65D26DD3-23F9-4D22-B9DE-AA3678B9E19F}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {06FFDC6F-4C43-476A-9460-B38DF030C293}

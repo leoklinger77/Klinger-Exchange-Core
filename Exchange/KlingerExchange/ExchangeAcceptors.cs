@@ -3,16 +3,15 @@ using KlingerExchange.MarketData.Core;
 using KlingerExchange.MarketData.Publisher;
 using KlingerExchange.Matching.Domain;
 using KlingerExchange.Matching.Engine.Instrument;
-using KlingerShared.Config;
 using QuickFix;
 using QuickFix.Logger;
 using QuickFix.Store;
 using Serilog;
 
 namespace KlingerExchange {
-    internal class ExchangeAcceptors {
+    internal static class ExchangeAcceptors {
 
-        public void Initialize() {
+        public static void Initialize() {
             Directory.SetCurrentDirectory(AppContext.BaseDirectory);
 
             // Load configuration files

@@ -9,12 +9,13 @@ namespace KlingerExchange.Matching.Services;
 
 public static class ExecutionReportBuilder {
     private static readonly ExecutionReportPool _pool = new();
+    private static long _execIdCounter;
 
     public static ExecutionReport BuildNewOrderReportPooled(Order order, string clOrdId) {
         var report = _pool.Rent();
 
         report.OrderID = new QuickFix.Fields.OrderID(order.OrderId.ToString());
-        report.ExecID = new QuickFix.Fields.ExecID(Guid.NewGuid().ToString());
+        report.ExecID = new QuickFix.Fields.ExecID(Interlocked.Increment(ref _execIdCounter).ToString());
         report.ExecTransType = new QuickFix.Fields.ExecTransType(QuickFix.Fields.ExecTransType.NEW);
         report.ExecType = new QuickFix.Fields.ExecType(QuickFix.Fields.ExecType.NEW);
         report.OrdStatus = new QuickFix.Fields.OrdStatus(MapOrderStatus(order.Status));
@@ -35,7 +36,7 @@ public static class ExecutionReportBuilder {
         var report = _pool.Rent();
 
         report.OrderID = new QuickFix.Fields.OrderID(order.OrderId.ToString());
-        report.ExecID = new QuickFix.Fields.ExecID(Guid.NewGuid().ToString());
+        report.ExecID = new QuickFix.Fields.ExecID(Interlocked.Increment(ref _execIdCounter).ToString());
         report.ExecTransType = new QuickFix.Fields.ExecTransType(QuickFix.Fields.ExecTransType.NEW);
         report.ExecType = new QuickFix.Fields.ExecType(QuickFix.Fields.ExecType.FILL);
         report.OrdStatus = new QuickFix.Fields.OrdStatus(MapOrderStatus(order.Status));
@@ -56,7 +57,7 @@ public static class ExecutionReportBuilder {
         var report = _pool.Rent();
 
         report.OrderID = new QuickFix.Fields.OrderID(orderId.ToString());
-        report.ExecID = new QuickFix.Fields.ExecID(Guid.NewGuid().ToString());
+        report.ExecID = new QuickFix.Fields.ExecID(Interlocked.Increment(ref _execIdCounter).ToString());
         report.ExecTransType = new QuickFix.Fields.ExecTransType(QuickFix.Fields.ExecTransType.NEW);
         report.ExecType = new QuickFix.Fields.ExecType(QuickFix.Fields.ExecType.CANCELED);
         report.OrdStatus = new QuickFix.Fields.OrdStatus(QuickFix.Fields.OrdStatus.CANCELED);
@@ -78,7 +79,7 @@ public static class ExecutionReportBuilder {
         var report = _pool.Rent();
 
         report.OrderID = new QuickFix.Fields.OrderID("0");
-        report.ExecID = new QuickFix.Fields.ExecID(Guid.NewGuid().ToString());
+        report.ExecID = new QuickFix.Fields.ExecID(Interlocked.Increment(ref _execIdCounter).ToString());
         report.ExecTransType = new QuickFix.Fields.ExecTransType(QuickFix.Fields.ExecTransType.NEW);
         report.ExecType = new QuickFix.Fields.ExecType(QuickFix.Fields.ExecType.REJECTED);
         report.OrdStatus = new QuickFix.Fields.OrdStatus(QuickFix.Fields.OrdStatus.REJECTED);
@@ -100,7 +101,7 @@ public static class ExecutionReportBuilder {
         var report = _pool.Rent();
 
         report.OrderID = new QuickFix.Fields.OrderID(order.OrderId.ToString());
-        report.ExecID = new QuickFix.Fields.ExecID(Guid.NewGuid().ToString());
+        report.ExecID = new QuickFix.Fields.ExecID(Interlocked.Increment(ref _execIdCounter).ToString());
         report.ExecTransType = new QuickFix.Fields.ExecTransType(QuickFix.Fields.ExecTransType.NEW);
         report.ExecType = new QuickFix.Fields.ExecType(QuickFix.Fields.ExecType.REPLACE);
         report.OrdStatus = new QuickFix.Fields.OrdStatus(MapOrderStatus(order.Status));

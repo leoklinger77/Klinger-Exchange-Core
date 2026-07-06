@@ -91,7 +91,7 @@ public sealed class EventStoreWriter : IDisposable
         if (sequenceId < 0)
         {
             Interlocked.Increment(ref _eventsDropped);
-            _log.Error("🔴 CRITICAL: EventStore buffer full! Event {SeqNum} lost. Total dropped: {Dropped}",
+            _log.Error("CRITICAL: EventStore buffer full! Event {SeqNum} lost. Total dropped: {Dropped}",
                 container.Header.SequenceNumber, _eventsDropped);
             return -1;
         }

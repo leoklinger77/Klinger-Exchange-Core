@@ -13,6 +13,8 @@ namespace KlingerBroker.MarketData;
 /// </summary>
 public sealed class MarketDataService : IDisposable
 {
+    /// <summary>Wire protocol multiplier (must match Exchange PriceConstants.WireMultiplier)</summary>
+    private const decimal WireMultiplier = 100_000m;
     private readonly ILogger _logger = Log.ForContext<MarketDataService>();
     private readonly Subject<TradeMessage> _tradeStream = new();
     private readonly Subject<InstrumentInfo[]> _instrumentListStream = new();
@@ -88,10 +90,10 @@ public sealed class MarketDataService : IDisposable
                         var info = new InstrumentInfo();
                         info.SymbolIndex = symbolIndex;
                         info.Channel = channel;
-                        info.TickSizeFixed = (long)(tickSize * 100_000m);
+                        info.TickSizeFixed = (long)(tickSize * WireMultiplier);
                         info.LotSize = lotSize;
-                        info.ReferencePriceFixed = (long)(referencePrice * 100_000m);
-                        info.PreviousCloseFixed = (long)(previousClose * 100_000m);
+                        info.ReferencePriceFixed = (long)(referencePrice * WireMultiplier);
+                        info.PreviousCloseFixed = (long)(previousClose * WireMultiplier);
                         info.Flags = (byte)(isFractional ? 1 : 0);
                         
                         unsafe

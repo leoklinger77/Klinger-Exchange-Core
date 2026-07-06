@@ -30,12 +30,12 @@ public static class SessionStore {
             _sessions[dto.SymbolIndex] = new InstrumentSession {
                 SymbolIndex = dto.SymbolIndex,
                 Status = status,
-                ReferencePriceFixed = (long)(dto.ReferencePrice * 100_000m),
-                PreviousCloseFixed = (long)(dto.PreviousClose * 100_000m),
-                PreviousHighFixed = (long)(dto.PreviousHigh * 100_000m),
-                PreviousLowFixed = (long)(dto.PreviousLow * 100_000m),
-                UpperLimitFixed = (long)(dto.UpperLimit * 100_000m),
-                LowerLimitFixed = (long)(dto.LowerLimit * 100_000m),
+                ReferencePriceFixed = (long)(dto.ReferencePrice * PriceConstants.WireMultiplierDecimal),
+                PreviousCloseFixed = (long)(dto.PreviousClose * PriceConstants.WireMultiplierDecimal),
+                PreviousHighFixed = (long)(dto.PreviousHigh * PriceConstants.WireMultiplierDecimal),
+                PreviousLowFixed = (long)(dto.PreviousLow * PriceConstants.WireMultiplierDecimal),
+                UpperLimitFixed = (long)(dto.UpperLimit * PriceConstants.WireMultiplierDecimal),
+                LowerLimitFixed = (long)(dto.LowerLimit * PriceConstants.WireMultiplierDecimal),
                 Volume = 0,
                 Trades = 0
             };
@@ -53,6 +53,6 @@ public static class SessionStore {
     }
 
     public static decimal GetPrice(long priceFixed) {
-        return (decimal)priceFixed / 100_000m;
+        return (decimal)priceFixed / PriceConstants.WireMultiplierDecimal;
     }
 }

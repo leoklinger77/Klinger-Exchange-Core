@@ -64,4 +64,28 @@ public sealed class FastPriceLevel {
 
         return true;
     }
+
+    /// <summary>
+    /// Applies a fill to a specific order by ID (used during EventStore recovery).
+    /// Returns true if the order was found and updated.
+    /// </summary>
+    public bool ApplyFillToOrder(long orderId, decimal fillQty, out bool removed) {
+        for (int i = 0; i < _orders.Count; i++) {
+            if (_orders[i].OrderId == orderId) {
+                TotalQuantity -= fillQty;
+                var newLeavesQty = _orders[i].LeavesQty - fillQty;
+
+                if (newLeavesQty <= 0) {
+                    _orders.RemoveAt(i);
+                    removed = true;
+                } else {
+                    _orders[i] = new FastOrder(orderId, newLeavesQty);
+                    removed = false;
+                }
+                return true;
+            }
+        }
+        removed = false;
+        return false;
+    }
 }

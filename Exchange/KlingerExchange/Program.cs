@@ -10,8 +10,7 @@ internal class Program {
         try {
             Log.Information("Starting OMS acceptor");
 
-            var oms = new ExchangeAcceptors();
-            oms.Initialize();
+            ExchangeAcceptors.Initialize();
 
             Log.Information("OMS acceptor stopped");
             return 0;

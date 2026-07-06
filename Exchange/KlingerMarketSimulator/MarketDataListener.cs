@@ -18,6 +18,9 @@ public sealed class MarketDataListener : IDisposable {
     public const string MulticastAddress = "239.1.1.100";
     public const int MulticastPort = 9900;
 
+    /// <summary>Wire protocol multiplier (must match Exchange PriceConstants.WireMultiplier)</summary>
+    private const decimal WireMultiplier = 100_000m;
+
     public long MessagesReceived { get; private set; }
     public bool HasInstruments => _symbolByIndex.Count > 0;
 
@@ -62,7 +65,7 @@ public sealed class MarketDataListener : IDisposable {
 
                                 var price = new MarketPrice {
                                     SymbolIndex = message.SymbolIndex,
-                                    LastPrice = (decimal)message.PriceFixed / 100000m,
+                                    LastPrice = (decimal)message.PriceFixed / WireMultiplier,
                                     LastQty = message.Quantity,
                                     Timestamp = DateTimeOffset.FromUnixTimeMilliseconds(message.TimestampNs / 1_000_000)
                                 };
@@ -103,7 +106,7 @@ public sealed class MarketDataListener : IDisposable {
                         if (!_prices.ContainsKey(info.SymbolIndex)) {
                             _prices[info.SymbolIndex] = new MarketPrice {
                                 SymbolIndex = info.SymbolIndex,
-                                LastPrice = (decimal)info.ReferencePriceFixed / 100_000m,
+                                LastPrice = (decimal)info.ReferencePriceFixed / WireMultiplier,
                                 LastQty = 0,
                                 Timestamp = DateTimeOffset.UtcNow
                             };

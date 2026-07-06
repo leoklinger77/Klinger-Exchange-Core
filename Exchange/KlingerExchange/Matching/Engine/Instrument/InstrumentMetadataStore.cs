@@ -26,7 +26,7 @@ public static class InstrumentMetadataStore
             {
                 SymbolIndex = dto.SymbolIndex,
                 Channel = dto.Channel,
-                TickSizeFixed = (long)(dto.TickSize * 100_000m),
+                TickSizeFixed = (long)(dto.TickSize * PriceConstants.WireMultiplierDecimal),
                 LotSize = dto.LotSize,
                 Flags = (byte)(dto.IsFractional ? 1 : 0)
             };

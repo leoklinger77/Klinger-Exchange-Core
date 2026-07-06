@@ -46,8 +46,11 @@ public unsafe struct InstrumentInfo
         }
     }
     
-    public decimal GetPrice(long priceFixed) => (decimal)priceFixed / 100_000m;
-    public decimal TickSize => (decimal)TickSizeFixed / 100_000m;
+    /// <summary>Wire protocol multiplier (must match Exchange PriceConstants.WireMultiplier)</summary>
+    private const decimal WireMultiplier = 100_000m;
+    
+    public decimal GetPrice(long priceFixed) => (decimal)priceFixed / WireMultiplier;
+    public decimal TickSize => (decimal)TickSizeFixed / WireMultiplier;
     public decimal ReferencePrice => GetPrice(ReferencePriceFixed);
     public decimal PreviousClose => GetPrice(PreviousCloseFixed);
     public bool IsFractional => (Flags & 1) != 0;

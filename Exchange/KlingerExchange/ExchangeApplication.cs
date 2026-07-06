@@ -17,6 +17,7 @@ using QuickFix;
 using QuickFix.Fields;
 using Serilog;
 using Serilog.Events;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 
 namespace KlingerExchange {
@@ -24,7 +25,7 @@ namespace KlingerExchange {
         private readonly ILogger _log = Log.ForContext<ExchangeApplication>();
         private readonly ExchangeConfig _exchangeConfig = ExchangeConfig.LoadConfig();
         private readonly MatchingEngine _matchingEngine;
-        private readonly Dictionary<string, long> _clOrdIdToOrderId;
+        private readonly ConcurrentDictionary<string, long> _clOrdIdToOrderId;
         private readonly LatencyMonitor _latencyMonitor;
         private readonly MetricsEventBus _metricsEventBus;
         private readonly OrderMetricsCollector _metricsCollector;
@@ -38,7 +39,7 @@ namespace KlingerExchange {
         public ExchangeApplication() {
             var repository = new OrderBookRepository();
             _matchingEngine = new MatchingEngine(repository);
-            _clOrdIdToOrderId = new Dictionary<string, long>();
+            _clOrdIdToOrderId = new ConcurrentDictionary<string, long>();
             _latencyMonitor = new LatencyMonitor(1000);
             _messageCount = 0;
 
@@ -151,8 +152,6 @@ namespace KlingerExchange {
 
         public void OnLogout(SessionID sessionID) {
             _log.Information("{Callback} {SessionId}", nameof(OnLogout), sessionID);
-
-            _matchingEngine.Dispose();
         }
 
         public void ToAdmin(Message message, SessionID sessionID) {
